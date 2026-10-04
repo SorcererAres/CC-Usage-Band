@@ -169,15 +169,17 @@ Issues and pull requests are welcome.
 
 ## Screenshots
 
+These images are rendered from the SVG and terminal text the mod actually outputs, inside a frame styled after Claude Code; they are not screenshots of the app.
+
 **Desktop app, light mode**
 
 <img src="docs/images/desktop-light-app.png" alt="usage-band in the desktop app, light mode" width="760">
 
-**Desktop app, dark mode**
+**Desktop app, dark mode** (the 5h limit past its threshold, in the warning color)
 
 <img src="docs/images/desktop-dark.png" alt="usage-band in the desktop app, dark mode" width="760">
 
-**Terminal** (Ghostty). Narrow terminals drop the bars first, then the reset times. Run `/usage-band-preview` to see every terminal style side by side.
+**Terminal** (Unicode icon style). Narrow terminals drop the bars first, then the reset times. In Ghostty the icons switch to Nerd Font glyphs. Run `/usage-band-preview` to see every terminal style side by side.
 
 <img src="docs/images/terminal.png" alt="usage-band in a terminal" width="760">
 

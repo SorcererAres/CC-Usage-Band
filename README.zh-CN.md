@@ -171,15 +171,17 @@ claude plugin test .
 
 ## 截图
 
+以下图片由插件实际输出的 SVG 与终端文字渲染而成，外框按 Claude Code 的样式仿制，并非应用界面截图。
+
 **桌面端，浅色模式**
 
 <img src="docs/images/desktop-light-app.png" alt="usage-band 在桌面端的浅色模式效果" width="760">
 
-**桌面端，深色模式**
+**桌面端，深色模式**（5h 额度超过阈值，显示警示色）
 
 <img src="docs/images/desktop-dark.png" alt="usage-band 在桌面端的深色模式效果" width="760">
 
-**终端**（Ghostty）：宽度不够时会先去掉进度条，再去掉重置时间。运行 `/usage-band-preview` 可以并排对比所有终端样式。
+**终端**（Unicode 图标样式）：宽度不够时会先去掉进度条，再去掉重置时间。在 Ghostty 里会自动换成 Nerd Font 图标。运行 `/usage-band-preview` 可以并排对比所有终端样式。
 
 <img src="docs/images/terminal.png" alt="usage-band 在终端里的效果" width="760">
 
