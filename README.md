@@ -196,6 +196,7 @@ On the desktop, Claude now draws the text, so it matches the app's font.
 - **Accessibility**: the first graphic of each group carries that group's description (e.g. "5-hour limit 29% used") for screen readers.
 - Claude now sets the text size and weight; figures may shift by a pixel or two as they change.
 - Version 2.0.0, since the desktop band is drawn in a new way.
+- **Docs**: the README previews are re-rendered for the new drawing, with the desktop text set in Anthropic Sans.
 
 ### 1.9.0 (2026-10-04)
 
@@ -206,6 +207,7 @@ The palette now follows Claude's brand colors.
 - **Color only on the graphics**: bars, dots and icons are slightly deepened in light mode and lifted in dark mode so they read on both; the tracks under the bars and dots are a shared warm gray.
 - **Easier to read**: secondary text such as the countdowns and `/1M` is darker in light mode, raising its contrast from 3.28 to 4.6. Graphics stay at 3:1 or more and text at 4.5:1 or more in both modes.
 - The color options in `/config` default to the new palette; set them there to bring the old colors back.
+- **Docs**: the README screenshots are replaced with previews of the band rendered in the new palette, in place of the original author's app screenshots, and are marked as rendered previews rather than app screenshots.
 
 ### Earlier versions
 
