@@ -47,7 +47,7 @@ English · [简体中文](./README.zh-CN.md)
 
 - **Glanceable.** Each metric has its own color. It turns red only when it needs you: by default a limit or the context past 80%, or a cache hit rate under 50%. Both the thresholds and the colors are [configurable](#configuration).
 - **Alive, not noisy.** A slow shine sweeps across the limit bars, every bar in step.
-- **Native on both surfaces.** Terminal: a character line with Nerd Font or Unicode icons that fits itself to the window width. Desktop app: an SVG row that spreads across the full width and wraps when the window is narrow, with limit bars that stretch with the window, a 2×10 dot matrix for the context window, and light and dark mode.
+- **Native on both surfaces.** Terminal: a character line with Nerd Font or Unicode icons that fits itself to the window width. Desktop app: an SVG row that spreads across the full width and wraps when the window is narrow, with limit bars and a context dot matrix that both stretch with the window, and light and dark mode.
 - **Light.** No files read, no processes, no network. It only listens to the usage figures Claude Code already has.
 
 ## Requirements
@@ -119,7 +119,7 @@ Thresholds run from 0 to 100. Colors are `#rrggbb` or `#rgb`; an invalid one fal
 | Metric | Source | Notes |
 | --- | --- | --- |
 | 5h / 7d | The rate-limit windows Claude Code reads from each API response | Rounded to whole percent. The reset time counts down every minute. Once the reset time passes with no new response in the session, the window shows 0% and no countdown. |
-| Context | The last request's input: uncached + cache reads + cache writes | Against the current model's window, so 1M and 200K models both read right. On desktop each dot is 5% of the window, filling the top row first. |
+| Context | The last request's input: uncached + cache reads + cache writes | Against the current model's window, so 1M and 200K models both read right. On desktop the dot matrix gains columns as the window widens: 2×10 at the narrowest, each dot 5% of the window, each dot a smaller share as it widens. It fills the top row first. |
 | Cache hit | Last turn's `cache_read / (input + cache_read + cache_write)` | Summed over every request in the turn. Subagent turns are not counted. |
 
 ## Terminal compatibility

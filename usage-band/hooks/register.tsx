@@ -359,24 +359,25 @@ const typeGroup = (icon: (c: string) => string, hue: string, num: string, suffix
   }
 }
 
-// Context as a 2×10 dot matrix: one dot per 1/20 of the window (50K of 1M), filling the top
-// row left to right before the bottom one, with the same shine over the lit dots
+// Context as a 2-row dot matrix (2×10 by default: one dot per 1/20 of the window), filling the top
+// row left to right before the bottom one, with the same shine over the lit dots.
+// 桌面端变宽时列数随之增加（点的大小和间距不变），每个点代表的比例相应变小
 // Rows sit so the dots' outer edges meet the CAP band: CAP.top + r and CAP.top + CAP.h - r
 const DOTS = { cols: 10, pitch: 5, r: 1.6, rows: [11.35, 18.15] }
-const ctxGroup = (hue: string, tokens: number, window: number, pct: number): Group => {
-  const lit = Math.min(DOTS.cols * 2, Math.round((pct / 100) * DOTS.cols * 2))
+const ctxGroup = (hue: string, tokens: number, window: number, pct: number, cols: number = DOTS.cols): Group => {
+  const lit = Math.min(cols * 2, Math.round((pct / 100) * cols * 2))
   const num = fmtTokens(tokens)
   const suffix = `/${fmtTokens(window)}`
   const lw = ICON + 6
-  const matrixW = DOTS.cols * DOTS.pitch
+  const matrixW = cols * DOTS.pitch
   return {
     width: lw + matrixW + D.inner + textW(num, D.md) + 1 + textW(suffix, D.sm),
     draw: x => {
       const mx = x + lw
       const dot = (i: number) =>
-        `<circle cx="${mx + DOTS.pitch / 2 + (i % DOTS.cols) * DOTS.pitch}" cy="${DOTS.rows[Math.floor(i / DOTS.cols)]}" r="${DOTS.r}"/>`
+        `<circle cx="${mx + DOTS.pitch / 2 + (i % cols) * DOTS.pitch}" cy="${DOTS.rows[Math.floor(i / cols)]}" r="${DOTS.r}"/>`
       const on = Array.from({ length: lit }, (_, i) => dot(i)).join('')
-      const off = Array.from({ length: DOTS.cols * 2 - lit }, (_, i) => dot(lit + i)).join('')
+      const off = Array.from({ length: cols * 2 - lit }, (_, i) => dot(lit + i)).join('')
       const nx = mx + matrixW + D.inner
       return {
         stat:
@@ -413,29 +414,39 @@ const wrap = (width: number, body: string) =>
 
 export type Part = Layers & { key: string; width: number; alt: string }
 
+// 桌面端可伸缩部分的尺寸：额度进度条长度（px）与上下文点阵列数
+export type Stretch = { barW: number; dotCols: number }
+export const DEFAULT_STRETCH: Stretch = { barW: D.barW, dotCols: DOTS.cols }
+
 export const desktopParts = (
   m: Measure | null,
   t: TurnTokens | null,
   at: number,
   theme: Theme = DEFAULT_THEME,
-  barW: number = D.barW,
+  stretch: Stretch = DEFAULT_STRETCH,
 ): Part[] => {
   const groups: { key: string; g: Group; alt: string }[] = []
   const five = m?.rateLimits.find(l => l.kind === 'five_hour')
   const seven = m?.rateLimits.find(l => l.kind === 'seven_day')
   if (five) {
-    const g = limitGroup('5h', '5h', five, theme.hue.five, at, theme, barW)
+    const g = limitGroup('5h', '5h', five, theme.hue.five, at, theme, stretch.barW)
     groups.push({ key: '5h', g, alt: `5-hour limit ${limitNow(five, at).pct}% used` })
   }
   if (seven) {
-    const g = limitGroup('7d', '7d', seven, theme.hue.seven, at, theme, barW)
+    const g = limitGroup('7d', '7d', seven, theme.hue.seven, at, theme, stretch.barW)
     groups.push({ key: '7d', g, alt: `7-day limit ${limitNow(seven, at).pct}% used` })
   }
   if (m) {
     const pct = ctxPercent(m.context)
     groups.push({
       key: 'ctx',
-      g: ctxGroup(pct >= theme.contextWarn ? theme.warn : theme.hue.ctx, m.context.tokens ?? 0, m.context.window, pct),
+      g: ctxGroup(
+        pct >= theme.contextWarn ? theme.warn : theme.hue.ctx,
+        m.context.tokens ?? 0,
+        m.context.window,
+        pct,
+        stretch.dotCols,
+      ),
       alt: `context ${fmtTokens(m.context.tokens ?? 0)} of ${fmtTokens(m.context.window)}`,
     })
   }
@@ -469,26 +480,31 @@ export type Piece = { key: string; svg: string; width: number; height: number; a
 
 // 桌面端一列约合多少 CSS 像素。宿主只上报列数：实测这一行 95 列、宽约 768px，约 8.1px/列，取 8 偏保守
 export const PX_PER_COL = 8
-// 进度条伸缩的上下限；估算误差留出的余量（剩下的空隙由外层 space-between 吸收，不会挤到换行）
+// 伸缩部分的上下限（进度条长度 px、点阵列数）；估算误差留出的余量（剩下的空隙由外层 space-between 吸收，不会挤到换行）
 export const BAR = { min: 40, max: 360, slack: 24 }
+export const DOT_COLS = { min: DOTS.cols, max: 72 }
 
-// 额度进度条随这一行的宽度伸缩：先按长度 0 算出其余内容和组间距占多少，剩下的平分给两条进度条。
-// 没有上报宽度、或这一行没有额度进度条时用默认长度
-export const fitBarWidth = (
+// 进度条和上下文点阵随这一行的宽度伸缩：先按伸缩部分为 0 算出其余内容和组间距占多少，
+// 剩下的平分给每条进度条和点阵；点阵按分到的宽度换算成列数。没有上报宽度时用默认尺寸
+export const fitStretch = (
   m: Measure | null,
   t: TurnTokens | null,
   at: number,
   theme: Theme,
   bodyColumns: number,
-): number => {
-  if (!(bodyColumns > 0)) return D.barW
-  const parts = desktopParts(m, t, at, theme, 0)
-  const bars = parts.filter(p => p.key === '5h' || p.key === '7d').length
-  if (bars === 0) return D.barW
+): Stretch => {
+  if (!(bodyColumns > 0)) return DEFAULT_STRETCH
+  const parts = desktopParts(m, t, at, theme, { barW: 0, dotCols: 0 })
+  const stretchy = parts.filter(p => p.key === '5h' || p.key === '7d' || p.key === 'ctx').length
+  if (stretchy === 0) return DEFAULT_STRETCH
   // 外层 Box 左右各留 1 列内边距
   const room = (bodyColumns - 2) * PX_PER_COL - BAR.slack
   const used = parts.reduce((w, p) => w + p.width, 0) + (parts.length - 1) * D.gap
-  return Math.round(Math.min(BAR.max, Math.max(BAR.min, (room - used) / bars)))
+  const share = (room - used) / stretchy
+  return {
+    barW: Math.round(Math.min(BAR.max, Math.max(BAR.min, share))),
+    dotCols: Math.min(DOT_COLS.max, Math.max(DOT_COLS.min, Math.floor(share / DOTS.pitch))),
+  }
 }
 
 // 水平自适应：每个分组和每条分隔线各是一张图片，由外层弹性布局横向铺满整行，窄时换行
@@ -498,10 +514,10 @@ export const desktopPieces = (
   at: number,
   theme: Theme = DEFAULT_THEME,
   begin = '0s',
-  barW: number = D.barW,
+  stretch: Stretch = DEFAULT_STRETCH,
 ): Piece[] => {
   const pieces: Piece[] = []
-  desktopParts(m, t, at, theme, barW).forEach((p, i) => {
+  desktopParts(m, t, at, theme, stretch).forEach((p, i) => {
     if (i > 0) {
       pieces.push({
         key: `sep-${p.key}`,
@@ -671,12 +687,12 @@ export const register: Register = (on, options) => {
     // Desktop and mobile animate inside the SVG, so they never read the frame counter
     if (e.surface === 'desktop' || e.surface === 'mobile') {
       const { Box, Svg } = $.ui.resolve(e)
-      const barW = fitBarWidth(m, t, at, theme, e.props.bodyColumns)
-      // 宽度变了（进度条长度变了）也要整组重建
-      const band = `${barW}|${desktopSvg(m, t, at, theme).svg}`
+      const stretch = fitStretch(m, t, at, theme, e.props.bodyColumns)
+      // 宽度变了（进度条长度、点阵列数变了）也要整组重建
+      const band = `${stretch.barW}|${stretch.dotCols}|${desktopSvg(m, t, at, theme).svg}`
       if (band !== lastBand) {
         lastBand = band
-        lastPieces = desktopPieces(m, t, at, theme, shineBegin(await $.clock.now()), barW)
+        lastPieces = desktopPieces(m, t, at, theme, shineBegin(await $.clock.now()), stretch)
       }
       return (
         <Box

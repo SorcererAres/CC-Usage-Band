@@ -6,9 +6,11 @@ import {
   ctxPercent,
   desktopParts,
   desktopPieces,
-  fitBarWidth,
+  fitStretch,
   PX_PER_COL,
   BAR,
+  DOT_COLS,
+  DEFAULT_STRETCH,
   desktopSvg,
   shineBegin,
   detectStyle,
@@ -406,7 +408,7 @@ test('desktop pieces start every shine at the same phase of one clock', async ()
   expect(desktopSvg(m, null, 0).svg).not.toContain('shine-begin')
 })
 
-test('desktop limit bars stretch with the band width, within bounds', async () => {
+test('desktop bars and the context dots stretch with the band width, within bounds', async () => {
   const m: Measure = {
     context: { tokens: 192_000, window: 1_000_000, percent: 19 },
     rateLimits: [
@@ -415,25 +417,42 @@ test('desktop limit bars stretch with the band width, within bounds', async () =
     ],
   }
   const t = { input: 0, output: 0, cacheRead: 100, cacheWrite: 0 }
-  const w = (cols: number) => fitBarWidth(m, t, 0, DEFAULT_THEME, cols)
-  // 越宽进度条越长，且有上下限
-  expect(w(95)).toBeGreaterThan(76)
-  expect(w(120)).toBeGreaterThan(w(95))
-  expect(w(400)).toBe(BAR.max)
-  expect(w(40)).toBe(BAR.min)
-  // 没有上报宽度、或没有额度数据时保持默认长度
-  expect(w(0)).toBe(76)
-  expect(fitBarWidth({ ...m, rateLimits: [] }, t, 0, DEFAULT_THEME, 95)).toBe(76)
+  const at = (cols: number) => fitStretch(m, t, 0, DEFAULT_THEME, cols)
+  // 越宽进度条越长、点阵列数越多，且有上下限
+  expect(at(95).barW).toBeGreaterThan(76)
+  expect(at(120).barW).toBeGreaterThan(at(95).barW)
+  expect(at(120).dotCols).toBeGreaterThan(at(95).dotCols)
+  expect(at(95).dotCols).toBeGreaterThan(10)
+  expect(at(400)).toEqual({ barW: BAR.max, dotCols: DOT_COLS.max })
+  expect(at(40)).toEqual({ barW: BAR.min, dotCols: DOT_COLS.min })
+  // 没有上报宽度时保持默认尺寸
+  expect(at(0)).toEqual(DEFAULT_STRETCH)
+  // 没有额度数据（非订阅账号）时，点阵独占剩余宽度
+  const ctxOnly = fitStretch({ ...m, rateLimits: [] }, t, 0, DEFAULT_THEME, 95)
+  expect(ctxOnly.dotCols).toBeGreaterThan(at(95).dotCols)
   // 伸缩后整行（含组间距）不超过这一行的估算宽度，不会被挤到换行
   for (const cols of [60, 95, 120, 160]) {
-    const pieces = desktopPieces(m, t, 0, DEFAULT_THEME, '0s', w(cols))
-    const groups = pieces.filter(p => p.alt)
+    const groups = desktopPieces(m, t, 0, DEFAULT_THEME, '0s', at(cols)).filter(p => p.alt)
     const total = groups.reduce((n, p) => n + p.width, 0) + (groups.length - 1) * 30
-    if (w(cols) > BAR.min) expect(total).toBeLessThanOrEqual((cols - 2) * PX_PER_COL)
+    if (at(cols).barW > BAR.min) expect(total).toBeLessThanOrEqual((cols - 2) * PX_PER_COL)
   }
   // 进度条的底轨就是这个长度
-  const svg = desktopPieces(m, t, 0, DEFAULT_THEME, '0s', 200).find(p => p.key === '5h')?.svg ?? ''
+  const svg = desktopPieces(m, t, 0, DEFAULT_THEME, '0s', { barW: 200, dotCols: 10 }).find(p => p.key === '5h')?.svg ?? ''
   expect(svg).toMatch(/width="200" height="6"[^>]*class="track"/)
+})
+
+test('a wider dot matrix keeps two rows and the same fill ratio', async () => {
+  const m: Measure = { context: { tokens: 500_000, window: 1_000_000, percent: 50 }, rateLimits: [] }
+  const ctx = (dotCols: number) =>
+    desktopPieces(m, null, 0, DEFAULT_THEME, '0s', { barW: 76, dotCols }).find(p => p.key === 'ctx')?.svg ?? ''
+  const lit = (svg: string) => (svg.match(/<clipPath id="c-ctx">(.*?)<\/clipPath>/)?.[1]?.match(/<circle/g) ?? []).length
+  const all = (svg: string) => (svg.match(/<circle [^>]*r="1.6"/g) ?? []).length
+  // 50%：10 列点亮 10 个，30 列点亮 30 个（都是整个上排）
+  expect(lit(ctx(10))).toBe(10)
+  expect(lit(ctx(30))).toBe(30)
+  expect(all(ctx(30))).toBe(60 + 30)
+  const rows = new Set(ctx(30).match(/cy="[\d.]+"/g))
+  expect(rows.size).toBe(2)
 })
 
 test('the desktop band sizes its bars from the columns it is given', async ($, on) => {
