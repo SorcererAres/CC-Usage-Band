@@ -12,7 +12,7 @@ const style = atom({ plugin: 'usage-band', key: 'style' } as const, 'unicode')
 // One hue per metric; the warning color takes over only when a metric is in trouble
 // 颜色与阈值：默认值如下，可在 /config 里按插件的 userConfig 字段逐项改
 export type Theme = {
-  hue: { five: string; seven: string; ctx: string; cache: string }
+  hue: { five: string; seven: string; ctx: string; cache: string; cost: string }
   warn: string
   // 额度与上下文达到该百分比变成警示色；缓存命中率低于该百分比变成警示色
   limitWarn: number
@@ -20,7 +20,7 @@ export type Theme = {
   cacheWarn: number
 }
 export const DEFAULT_THEME: Theme = {
-  hue: { five: '#5cc4d6', seven: '#e8a25f', ctx: '#9aa5f5', cache: '#72cf9f' },
+  hue: { five: '#5cc4d6', seven: '#e8a25f', ctx: '#9aa5f5', cache: '#72cf9f', cost: '#d4b04c' },
   warn: '#e5685f',
   limitWarn: 80,
   contextWarn: 80,
@@ -51,6 +51,7 @@ export const themeFrom = (o: PluginOptions = {}): Theme => {
       seven: parseColor(o.colorSevenDay, d.hue.seven),
       ctx: parseColor(o.colorContext, d.hue.ctx),
       cache: parseColor(o.colorCache, d.hue.cache),
+      cost: parseColor(o.colorCost, d.hue.cost),
     },
     warn: parseColor(o.colorWarn, d.warn),
     limitWarn: parsePercent(o.limitWarn, d.limitWarn),
@@ -80,6 +81,9 @@ export const fmtTokens = (n: number): string => {
   if (n >= 1_000) return `${+(n / 1_000).toFixed(n >= 100_000 ? 0 : 1)}K`
   return String(n)
 }
+
+// 费用：不到 100 美元保留两位小数，再多取整
+export const fmtCost = (usd: number): string => `$${usd < 100 ? usd.toFixed(2) : Math.round(usd)}`
 
 export const fmtLeft = (ms: number): string => {
   const mins = Math.max(0, Math.round(ms / 60_000))
@@ -336,6 +340,11 @@ const targetIcon = (color: string) =>
   `<g fill="none" stroke="${color}" stroke-width="1.2">` +
   `<circle cx="5" cy="5" r="4.4"/><circle cx="5" cy="5" r="2.1"/><circle cx="5" cy="5" r="0.7" fill="${color}"/></g>`
 
+// A coin with a dollar sign: what the session has cost (accounts billed per use)
+const coinIcon = (color: string) =>
+  `<g fill="none" stroke="${color}" stroke-width="1.2"><circle cx="5" cy="5" r="4.4"/>` +
+  `<path d="M6.5 3.6 C6.1 3.1 5.6 3 5 3 C4.2 3 3.6 3.4 3.6 4 C3.6 5.3 6.4 4.7 6.4 6.1 C6.4 6.7 5.8 7.1 5 7.1 C4.4 7.1 3.9 6.9 3.5 6.4 M5 2.2 V7.8" stroke-width="0.9" stroke-linecap="round"/></g>`
+
 // Icons are drawn in a CAP.h square, outer stroke edge included
 const ICON = CAP.h
 
@@ -436,6 +445,11 @@ export const desktopParts = (
     const g = limitGroup('7d', '7d', seven, theme.hue.seven, at, theme, stretch.barW)
     groups.push({ key: '7d', g, alt: `7-day limit ${limitNow(seven, at).pct}% used` })
   }
+  // 没有额度数据的账号（按量计费）显示本会话费用，占据额度的位置；订阅账号不按量计费，不显示，免得误解
+  if (!five && !seven && m?.cost !== undefined && Number.isFinite(m.cost)) {
+    const text = fmtCost(m.cost)
+    groups.push({ key: 'cost', g: typeGroup(coinIcon, theme.hue.cost, text, ''), alt: `session cost ${text}` })
+  }
   if (m) {
     const pct = ctxPercent(m.context)
     groups.push({
@@ -482,10 +496,11 @@ export type Piece = { key: string; svg: string; width: number; height: number; a
 export const PX_PER_COL = 8
 // 伸缩部分的上下限（进度条长度 px、点阵列数）；估算误差留出的余量（剩下的空隙由外层 space-between 吸收，不会挤到换行）
 export const BAR = { min: 40, max: 360, slack: 24 }
-export const DOT_COLS = { min: DOTS.cols, max: 72 }
+// 点阵列数只取这几档，每个点分别代表 5%、2.5%、2%、1%，点亮几个点始终对应整齐的刻度
+export const DOT_STEPS = [10, 20, 25, 50] as const
 
 // 进度条和上下文点阵随这一行的宽度伸缩：先按伸缩部分为 0 算出其余内容和组间距占多少，
-// 剩下的平分给每条进度条和点阵；点阵按分到的宽度换算成列数。没有上报宽度时用默认尺寸
+// 剩下的平分给每条进度条和点阵；点阵取放得下的最大一档列数。没有上报宽度时用默认尺寸
 export const fitStretch = (
   m: Measure | null,
   t: TurnTokens | null,
@@ -503,7 +518,7 @@ export const fitStretch = (
   const share = (room - used) / stretchy
   return {
     barW: Math.round(Math.min(BAR.max, Math.max(BAR.min, share))),
-    dotCols: Math.min(DOT_COLS.max, Math.max(DOT_COLS.min, Math.floor(share / DOTS.pitch))),
+    dotCols: [...DOT_STEPS].reverse().find(c => c * DOTS.pitch <= share) ?? DOT_STEPS[0],
   }
 }
 
@@ -615,7 +630,7 @@ export const register: Register = (on, options) => {
       $.ui.toast(WELCOME, { timeoutMs: 12_000 })
     }
     const usage = await $.session.usage()
-    await setMeasure($, { context: usage.context, rateLimits: usage.rateLimits }, theme)
+    await setMeasure($, { context: usage.context, rateLimits: usage.rateLimits, cost: usage.cost?.usd }, theme)
     await tick($, theme)
     $.clock.every(60_000, () => {
       void tick($, theme)
@@ -627,6 +642,7 @@ export const register: Register = (on, options) => {
     const m: Measure = {
       context: { tokens: e.context.tokens, window: e.context.window, percent: e.context.percent },
       rateLimits: e.rateLimits.map(({ kind, percentUsed, resetsAt }) => ({ kind, percentUsed, resetsAt })),
+      cost: e.cost?.usd,
     }
     await setMeasure($, m, theme)
     await tick($, theme)
@@ -694,11 +710,13 @@ export const register: Register = (on, options) => {
         lastBand = band
         lastPieces = desktopPieces(m, t, at, theme, shineBegin(await $.clock.now()), stretch)
       }
+      // 两组及以上时组间距平分剩余空间；只有一组时居中，免得整行偏向左边
+      const groupCount = lastPieces.filter(p => p.alt).length
       return (
         <Box
           flexDirection="row"
           flexWrap="wrap"
-          justifyContent="space-between"
+          justifyContent={groupCount > 1 ? 'space-between' : 'center'}
           alignItems="center"
           flexGrow={1}
           paddingX={1}

@@ -20,7 +20,7 @@ The line fits itself to the terminal width: on a narrow terminal it drops the ba
 
 **Desktop app (Code tab)**
 
-A row of SVG groups that spreads across the full width of the band and wraps onto a second line when the window is narrow: limit bars that stretch with the window, with the figure and reset time beside them, the context window as a two-row dot matrix that gains columns as the window widens (2×10 at the narrowest, each dot 5% of the window), and the cache hit rate. Hairlines separate the groups. It follows the app's light and dark mode.
+A row of SVG groups that spreads across the full width of the band and wraps onto a second line when the window is narrow: limit bars that stretch with the window, with the figure and reset time beside them, the context window as a two-row dot matrix that steps up from 2×10 to 2×50 as the window widens (each dot 5%, 2.5%, 2% or 1% of the window), and the cache hit rate. On an account without rate limits the session cost takes the limits' place. A lone group sits centered. Hairlines separate the groups. It follows the app's light and dark mode.
 
 ## Install
 
@@ -35,13 +35,13 @@ Then open a new session (or run `/reload-plugins`). Nothing to configure. Best i
 
 Terminal icons are picked automatically: Nerd Font icons in Ghostty, plain Unicode elsewhere. To override, set `USAGE_BAND_ICONS` in your shell profile to `auto`, `nerd`, `unicode` or `ascii`, e.g. `export USAGE_BAND_ICONS=unicode`.
 
-The warning thresholds and the colors are plugin options, set in `/config`: `limitWarn` (default 80), `contextWarn` (80), `cacheWarn` (50), and `colorFiveHour`, `colorSevenDay`, `colorContext`, `colorCache`, `colorWarn` as `#rrggbb` hex colors. An invalid value falls back to its default.
+The warning thresholds and the colors are plugin options, set in `/config`: `limitWarn` (default 80), `contextWarn` (80), `cacheWarn` (50), and `colorFiveHour`, `colorSevenDay`, `colorContext`, `colorCache`, `colorCost`, `colorWarn` as `#rrggbb` hex colors. An invalid value falls back to its default.
 
 Run `/usage-band-preview` to see the band in every terminal style side by side, including how a 256-color terminal shows the colors.
 
 ## Notes
 
-- The 5h / 7d figures come from your subscription's rate-limit headers, so they appear after the first response of a session and only on a subscription.
+- The 5h / 7d figures come from your subscription's rate-limit headers, so they appear after the first response of a session and only on a subscription. Without one, the desktop band shows the session cost instead.
 - The cache hit rate is the last turn's cache reads over all its input (uncached + cache reads + cache writes), summed over the turn's requests.
 - The desktop text uses Inter when it is installed and falls back to SF Pro / the system UI font.
 

@@ -9,7 +9,8 @@ import {
   fitStretch,
   PX_PER_COL,
   BAR,
-  DOT_COLS,
+  DOT_STEPS,
+  fmtCost,
   DEFAULT_STRETCH,
   desktopSvg,
   shineBegin,
@@ -20,6 +21,7 @@ import {
   hitRate,
   layout,
   limitNow,
+  lighten,
   parseColor,
   parsePercent,
   themeFrom,
@@ -421,10 +423,13 @@ test('desktop bars and the context dots stretch with the band width, within boun
   // 越宽进度条越长、点阵列数越多，且有上下限
   expect(at(95).barW).toBeGreaterThan(76)
   expect(at(120).barW).toBeGreaterThan(at(95).barW)
-  expect(at(120).dotCols).toBeGreaterThan(at(95).dotCols)
-  expect(at(95).dotCols).toBeGreaterThan(10)
-  expect(at(400)).toEqual({ barW: BAR.max, dotCols: DOT_COLS.max })
-  expect(at(40)).toEqual({ barW: BAR.min, dotCols: DOT_COLS.min })
+  // 列数分档：更宽时不减少，跨档后增加
+  expect(at(120).dotCols).toBeGreaterThanOrEqual(at(95).dotCols)
+  expect(at(200).dotCols).toBeGreaterThan(at(60).dotCols)
+  expect(at(400)).toEqual({ barW: BAR.max, dotCols: 50 })
+  expect(at(40)).toEqual({ barW: BAR.min, dotCols: 10 })
+  // 点阵列数只取整刻度的几档
+  for (const cols of [40, 60, 80, 95, 120, 160, 400]) expect(DOT_STEPS).toContain(at(cols).dotCols)
   // 没有上报宽度时保持默认尺寸
   expect(at(0)).toEqual(DEFAULT_STRETCH)
   // 没有额度数据（非订阅账号）时，点阵独占剩余宽度
@@ -475,4 +480,58 @@ test('the desktop band sizes its bars from the columns it is given', async ($, o
     return Number(five?.props.width)
   }
   expect(await widthAt(60)).toBeGreaterThan(await widthAt(40))
+})
+
+test('a lone context group gets a whole-percent dot matrix and sits centered', async ($, on) => {
+  mock.clock(on)
+  on('session.measure', ($, e) => ({ changed: e.changed }))
+  // 截图里的情形：只有上下文一组，宽 95 列
+  await $.session.measure({
+    context: { tokens: 632_000, window: 1_000_000, percent: 63 },
+    rateLimits: [],
+    changed: ['context'],
+  })
+  const ui = await $.ui.mount({
+    plugin: 'usage-band',
+    surface: 'desktop',
+    component: 'AbovePrompt',
+    props: { ...BAND.props, bodyColumns: 95 } as never,
+  })
+  expect((await ui.find({ type: 'Box' }))?.props.justifyContent).toBe('center')
+  const svg = String((await ui.find({ type: 'Svg' }))?.props.source)
+  // 2×50，每点 1%：63% 点亮 63 个
+  expect((svg.match(/<circle [^>]*r="1.6"/g) ?? []).length).toBe(50 * 2 + 63)
+  await ui.unmount()
+})
+
+test('accounts without rate limits see the session cost on the desktop', async ($, on) => {
+  expect(fmtCost(0)).toBe('$0.00')
+  expect(fmtCost(1.234)).toBe('$1.23')
+  expect(fmtCost(123.4)).toBe('$123')
+  const base: Measure = { context: { tokens: 100_000, window: 1_000_000, percent: 10 }, rateLimits: [], cost: 1.5 }
+  const keys = (mm: Measure) => desktopParts(mm, null, 0).map(p => p.key)
+  // 按量计费：费用排在最前，占据额度的位置
+  expect(keys(base)).toEqual(['cost', 'ctx'])
+  expect(desktopParts(base, null, 0)[0]?.alt).toBe('session cost $1.50')
+  // 订阅账号（有额度数据）不显示费用；宿主没给费用时也不显示
+  expect(keys({ ...base, rateLimits: [{ kind: 'five_hour', percentUsed: 10 }] })).toEqual(['5h', 'ctx'])
+  expect(keys({ ...base, cost: undefined })).toEqual(['ctx'])
+  // 费用的颜色可以配置
+  const svg = desktopPieces(base, null, 0, themeFrom({ colorCost: '#123456' }))[0]?.svg ?? ''
+  expect(svg).toContain(`stroke="${lighten('#123456', -0.15)}"`)
+
+  // 端到端：session.measure 带来的费用会画出来，有两组时用 space-between
+  mock.clock(on)
+  on('session.measure', ($, e) => ({ changed: e.changed }))
+  await $.session.measure({
+    context: { tokens: 100_000, window: 1_000_000, percent: 10 },
+    rateLimits: [],
+    cost: { usd: 2.5 },
+    changed: ['context', 'cost'],
+  })
+  const ui = await $.ui.mount({ plugin: 'usage-band', surface: 'desktop', ...BAND })
+  const alts = (await ui.findAll({ type: 'Svg' })).map(s => s.props.alt).filter(Boolean)
+  expect(alts).toEqual(['session cost $2.50', 'context 100K of 1M'])
+  expect((await ui.find({ type: 'Box' }))?.props.justifyContent).toBe('space-between')
+  await ui.unmount()
 })
