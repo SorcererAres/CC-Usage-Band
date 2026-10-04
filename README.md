@@ -11,7 +11,9 @@
 
 English · [简体中文](./README.zh-CN.md)
 
-<img src="docs/images/banner.png" alt="usage-band in the Claude Code desktop app (top) and in a terminal (bottom)" width="760">
+<img src="docs/images/banner.png" alt="usage-band in the Claude Code desktop app (top) and in a terminal (bottom), rendered preview" width="760">
+
+<sub>A preview rendered from the mod's output, not a screenshot of the app; see <a href="#previews">Previews</a>.</sub>
 
 </div>
 
@@ -41,7 +43,7 @@ English · [简体中文](./README.zh-CN.md)
 - [Terminal compatibility](#terminal-compatibility)
 - [Privacy and permissions](#privacy-and-permissions)
 - [Development](#development)
-- [Screenshots](#screenshots)
+- [Previews](#previews)
 - [Changelog](#changelog)
 - [License](#license)
 
@@ -176,7 +178,7 @@ While editing, load it with `claude --plugin-dir ./usage-band`; the session relo
 
 Issues and pull requests are welcome.
 
-## Screenshots
+## Previews
 
 These images are rendered from what the mod outputs, inside a frame styled after Claude Code; they are not screenshots of the app. On the desktop the graphics are the mod's SVG and the text is set in Anthropic Sans the way Claude draws it; Claude decides the text size and color, so those are approximate here.
 
@@ -186,7 +188,7 @@ These images are rendered from what the mod outputs, inside a frame styled after
 
 **Desktop app, dark mode** (the 5h limit past its threshold, in the warning color)
 
-<img src="docs/images/desktop-dark.png" alt="usage-band in the desktop app, dark mode" width="760">
+<img src="docs/images/desktop-dark.png" alt="usage-band in the desktop app, dark mode, with the 5h limit past its threshold in the warning color" width="760">
 
 **Terminal** (Unicode icon style). Narrow terminals drop the bars first, then the reset times. In Ghostty the icons switch to Nerd Font glyphs. Run `/usage-band-preview` to see every terminal style side by side.
 

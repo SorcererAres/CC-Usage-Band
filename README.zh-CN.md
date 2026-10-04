@@ -11,7 +11,9 @@
 
 [English](./README.md) · 简体中文
 
-<img src="docs/images/banner.png" alt="usage-band 在 Claude Code 桌面端（上）和终端（下）的效果" width="760">
+<img src="docs/images/banner.png" alt="usage-band 在 Claude Code 桌面端（上）和终端（下）的效果（渲染预览）" width="760">
+
+<sub>由插件输出渲染的预览图，并非应用截图，详见<a href="#预览图">预览图</a>。</sub>
 
 </div>
 
@@ -41,7 +43,7 @@
 - [终端兼容性](#终端兼容性)
 - [隐私与权限](#隐私与权限)
 - [开发](#开发)
-- [截图](#截图)
+- [预览图](#预览图)
 - [更新日志](#更新日志)
 - [许可证](#许可证)
 
@@ -178,7 +180,7 @@ claude plugin test .
 
 欢迎提交 Issue 和 Pull Request。
 
-## 截图
+## 预览图
 
 以下图片由插件实际输出渲染而成，外框按 Claude Code 的样式仿制，并非应用界面截图。桌面端的图形是插件输出的 SVG，文字按 Claude 的方式以 Anthropic Sans 排版；文字的字号和颜色由 Claude 决定，图中为近似值。
 
@@ -188,7 +190,7 @@ claude plugin test .
 
 **桌面端，深色模式**（5h 额度超过阈值，显示警示色）
 
-<img src="docs/images/desktop-dark.png" alt="usage-band 在桌面端的深色模式效果" width="760">
+<img src="docs/images/desktop-dark.png" alt="usage-band 在桌面端的深色模式效果：5h 额度超过阈值，显示警示色" width="760">
 
 **终端**（Unicode 图标样式）：宽度不够时会先去掉进度条，再去掉重置时间。在 Ghostty 里会自动换成 Nerd Font 图标。运行 `/usage-band-preview` 可以并排对比所有终端样式。
 
