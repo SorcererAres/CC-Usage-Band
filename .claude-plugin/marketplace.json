@@ -12,7 +12,7 @@
       "name": "usage-band",
       "source": "./usage-band",
       "description": "5h/7d limits, context window and cache hit rate above the prompt, for the terminal and the desktop app",
-      "version": "2.0.1"
+      "version": "2.0.2"
     }
   ]
 }

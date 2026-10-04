@@ -194,6 +194,13 @@ These images are rendered from what the mod outputs, inside a frame styled after
 
 ## Changelog
 
+### 2.0.2 (2026-10-04)
+
+License and wording cleanup; features are the same as 2.0.1.
+
+- **Copyright**: `LICENSE` adds `Copyright (c) 2026 SorcererAres`; the existing copyright notice and the MIT terms are unchanged.
+- **Wording**: the README, the marketplace description and the repository description now credit SorcererAres only.
+
 ### 2.0.1 (2026-10-04)
 
 The author and marketplace name are now SorcererAres's own, so it no longer clashes with another marketplace of the same name.
