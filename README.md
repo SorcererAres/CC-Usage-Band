@@ -29,7 +29,7 @@ English · [简体中文](./README.zh-CN.md)
 > - Colors that match Claude: neutral figures, with the bars, dots and icons in Claude's brand colors (since 1.9.0).
 > - Warning text at a lightness that reads on both light and dark bands.
 >
-> Already installed? Run `/plugin marketplace update cc-usage-band`. The full list is in the [changelog](#changelog).
+> Already installed? Run `/plugin marketplace update sorcerer-usage-band`. The full list is in the [changelog](#changelog).
 
 ## Contents
 
@@ -71,7 +71,7 @@ Run these two commands inside Claude Code:
 
 ```
 /plugin marketplace add SorcererAres/CC-Usage-Band
-/plugin install usage-band@cc-usage-band
+/plugin install usage-band@sorcerer-usage-band
 ```
 
 Then **open a new session**. The band appears above the prompt. That's it, nothing to configure.
@@ -89,13 +89,13 @@ claude --plugin-dir CC-Usage-Band/usage-band
 **Update**
 
 ```
-/plugin marketplace update cc-usage-band
+/plugin marketplace update sorcerer-usage-band
 ```
 
 **Uninstall**
 
 ```
-/plugin uninstall usage-band@cc-usage-band
+/plugin uninstall usage-band@sorcerer-usage-band
 ```
 
 ## Configuration
@@ -158,7 +158,7 @@ It does not read or write files, run processes, call the network or send any dat
 
 ```
 .
-├── .claude-plugin/marketplace.json   # the cc-usage-band marketplace
+├── .claude-plugin/marketplace.json   # the sorcerer-usage-band marketplace
 └── usage-band/
     ├── .claude-plugin/plugin.json    # manifest
     ├── hooks/register.tsx            # the mod
@@ -193,6 +193,21 @@ These images are rendered from what the mod outputs, inside a frame styled after
 <img src="docs/images/terminal.png" alt="usage-band in a terminal" width="760">
 
 ## Changelog
+
+### 2.0.1 (2026-10-04)
+
+The author and marketplace name are now the fork's own, so it no longer clashes with the original.
+
+- **Author**: the plugin and the marketplace list SorcererAres as author, noting that this is a fork of Jetson Chan's CC-Usage-Band; the original copyright notice stays.
+- **Marketplace renamed**: from `cc-usage-band` to `sorcerer-usage-band`, so it no longer shares a name with the original and both can be added. The install command is now `/plugin install usage-band@sorcerer-usage-band`.
+- **Moving from the old name**: if you installed under the old name, remove it and install under the new one:
+
+  ```
+  /plugin uninstall usage-band@cc-usage-band
+  /plugin marketplace remove cc-usage-band
+  /plugin marketplace add SorcererAres/CC-Usage-Band
+  /plugin install usage-band@sorcerer-usage-band
+  ```
 
 ### 2.0.0 (2026-10-04)
 
@@ -230,4 +245,4 @@ The palette now follows Claude's brand colors.
 
 ## License
 
-[MIT](./LICENSE) © Jetson Chan
+[MIT](./LICENSE) © Jetson Chan (original author) · SorcererAres (this fork)

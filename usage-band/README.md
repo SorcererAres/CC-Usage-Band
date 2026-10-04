@@ -14,7 +14,7 @@ The figures stay neutral and the graphics carry Claude's brand colors (blue for 
 > - Colors that match Claude: neutral figures, with the bars, dots and icons in Claude's brand colors (since 1.9.0).
 > - Warning text at a lightness that reads on both light and dark bands.
 >
-> Already installed? Run `/plugin marketplace update cc-usage-band`. The full list is in the [changelog](#changelog).
+> Already installed? Run `/plugin marketplace update sorcerer-usage-band`. The full list is in the [changelog](#changelog).
 
 ## How it looks
 
@@ -34,7 +34,7 @@ A row of SVG groups that spreads across the full width of the band and wraps ont
 
 ```
 /plugin marketplace add SorcererAres/CC-Usage-Band
-/plugin install usage-band@cc-usage-band
+/plugin install usage-band@sorcerer-usage-band
 ```
 
 Then open a new session (or run `/reload-plugins`). Nothing to configure. Best in [Ghostty](https://ghostty.org), which ships the icon font.
@@ -71,6 +71,21 @@ claude plugin test .
 ```
 
 ## Changelog
+
+### 2.0.1 (2026-10-04)
+
+The author and marketplace name are now the fork's own, so it no longer clashes with the original.
+
+- **Author**: the plugin and the marketplace list SorcererAres as author, noting that this is a fork of Jetson Chan's CC-Usage-Band; the original copyright notice stays.
+- **Marketplace renamed**: from `cc-usage-band` to `sorcerer-usage-band`, so it no longer shares a name with the original and both can be added. The install command is now `/plugin install usage-band@sorcerer-usage-band`.
+- **Moving from the old name**: if you installed under the old name, remove it and install under the new one:
+
+  ```
+  /plugin uninstall usage-band@cc-usage-band
+  /plugin marketplace remove cc-usage-band
+  /plugin marketplace add SorcererAres/CC-Usage-Band
+  /plugin install usage-band@sorcerer-usage-band
+  ```
 
 ### 2.0.0 (2026-10-04)
 

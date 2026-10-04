@@ -29,7 +29,7 @@
 > - 配色跟 Claude 一致：数字保持中性，进度条、点阵和图标用 Claude 的品牌色（1.9.0 起）。
 > - 警示文字调到在浅色和深色底上都看得清的亮度。
 >
-> 已安装的用户运行 `/plugin marketplace update cc-usage-band` 即可更新。完整内容见[更新日志](#更新日志)。
+> 已安装的用户运行 `/plugin marketplace update sorcerer-usage-band` 即可更新。完整内容见[更新日志](#更新日志)。
 
 ## 目录
 
@@ -73,7 +73,7 @@
 
 ```
 /plugin marketplace add SorcererAres/CC-Usage-Band
-/plugin install usage-band@cc-usage-band
+/plugin install usage-band@sorcerer-usage-band
 ```
 
 然后**新开一个会话**，输入框上方就会出现这一行。就这么简单，不需要任何配置。
@@ -91,13 +91,13 @@ claude --plugin-dir CC-Usage-Band/usage-band
 **更新**
 
 ```
-/plugin marketplace update cc-usage-band
+/plugin marketplace update sorcerer-usage-band
 ```
 
 **卸载**
 
 ```
-/plugin uninstall usage-band@cc-usage-band
+/plugin uninstall usage-band@sorcerer-usage-band
 ```
 
 ## 设置
@@ -160,7 +160,7 @@ export USAGE_BAND_ICONS=unicode   # auto（默认）· nerd · unicode · ascii
 
 ```
 .
-├── .claude-plugin/marketplace.json   # cc-usage-band 插件市场
+├── .claude-plugin/marketplace.json   # sorcerer-usage-band 插件市场
 └── usage-band/
     ├── .claude-plugin/plugin.json    # 插件信息
     ├── hooks/register.tsx            # 模组代码
@@ -195,6 +195,21 @@ claude plugin test .
 <img src="docs/images/terminal.png" alt="usage-band 在终端里的效果" width="760">
 
 ## 更新日志
+
+### 2.0.1（2026-10-04）
+
+作者和插件市场名改为二次开发者自己的，避免和原版冲突。
+
+- **作者**：插件和插件市场的作者改为 SorcererAres，并注明基于 Jetson Chan 的 CC-Usage-Band 二次开发；原作者的版权声明保留不变。
+- **插件市场改名**：从 `cc-usage-band` 改为 `sorcerer-usage-band`，和原版不再重名，两者可以同时添加。安装命令随之变为 `/plugin install usage-band@sorcerer-usage-band`。
+- **从旧名称迁移**：如果你用旧名称装过，先卸载旧的，再按新名称安装：
+
+  ```
+  /plugin uninstall usage-band@cc-usage-band
+  /plugin marketplace remove cc-usage-band
+  /plugin marketplace add SorcererAres/CC-Usage-Band
+  /plugin install usage-band@sorcerer-usage-band
+  ```
 
 ### 2.0.0（2026-10-04）
 
@@ -232,4 +247,4 @@ claude plugin test .
 
 ## 许可证
 
-[MIT](./LICENSE) © Jetson Chan
+[MIT](./LICENSE) © Jetson Chan（原作者）· SorcererAres（二次开发）

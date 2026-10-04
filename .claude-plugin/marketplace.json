@@ -1,17 +1,18 @@
 {
-  "name": "cc-usage-band",
+  "name": "sorcerer-usage-band",
   "owner": {
-    "name": "Jetson Chan"
+    "name": "SorcererAres",
+    "url": "https://github.com/SorcererAres"
   },
   "metadata": {
-    "description": "usage-band, a Claude Code mod by Jetson Chan"
+    "description": "usage-band, a Claude Code mod maintained by SorcererAres, forked from Jetson Chan's CC-Usage-Band"
   },
   "plugins": [
     {
       "name": "usage-band",
       "source": "./usage-band",
       "description": "5h/7d limits, context window and cache hit rate above the prompt, for the terminal and the desktop app",
-      "version": "2.0.0"
+      "version": "2.0.1"
     }
   ]
 }
