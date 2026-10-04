@@ -126,7 +126,7 @@ claude --plugin-dir CC-Usage-Band/usage-band
 export USAGE_BAND_ICONS=unicode   # auto（默认）· nerd · unicode · ascii
 ```
 
-**阈值和颜色**也可以改，但不是必须的，默认就是上面「功能」里说的效果。在 Claude Code 里打开 `/config`，找到 usage-band 的这几项，改完插件会自动重新加载：
+**阈值和颜色**也可以改，但不是必须的，默认就是上面「功能」里说的效果。可以改的选项如下，表格下面是三种修改方式：
 
 | 选项 | 默认值 | 作用 |
 | --- | --- | --- |
@@ -139,7 +139,19 @@ export USAGE_BAND_ICONS=unicode   # auto（默认）· nerd · unicode · ascii
 | `colorCache` | `#788c5d` | 缓存命中率的颜色 |
 | `colorWarn` | `#b8433b` | 警示色 |
 
-阈值的取值范围是 0–100。颜色写成 `#rrggbb` 或 `#rgb`，填错时会退回默认值。这些值保存在 `settings.json` 的 `pluginConfigs["usage-band"].options` 里，也可以直接编辑这个文件。
+阈值的取值范围是 0–100。颜色写成 `#rrggbb` 或 `#rgb`，填错时会退回默认值。
+
+**修改方式**
+
+- **`/config`**：在 Claude Code 里打开，找到 usage-band 的这几项，改完插件会自动重新加载。
+- **`/plugin configure usage-band@sorcerer-usage-band`**：在 Claude Code 里列出这几项并逐个设置。
+- **系统终端**（用不了上面两个命令时，比如在桌面端）：把要改的项写成 JSON 传给 `claude plugin configure`，值都写成字符串，没写到的项保持原样。改完要重启 Claude Code 才会生效。
+
+  ```bash
+  echo '{"limitWarn":"70","colorWarn":"#ff0000"}' | claude plugin configure usage-band@sorcerer-usage-band --values-stdin
+  ```
+
+这些值保存在 `settings.json` 的 `pluginConfigs["usage-band@sorcerer-usage-band"].options` 里，也可以直接编辑这个文件，改完同样要重启 Claude Code。
 
 ## 数据说明
 

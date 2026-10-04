@@ -124,7 +124,7 @@ If your terminal shows boxes instead of icons, or you use a Nerd Font in another
 export USAGE_BAND_ICONS=unicode   # auto (default) · nerd · unicode · ascii
 ```
 
-**Thresholds and colors** can be changed too, though you never have to: the defaults are what [Features](#features) describes. Open `/config` in Claude Code and find the usage-band rows; the mod reloads when one changes.
+**Thresholds and colors** can be changed too, though you never have to: the defaults are what [Features](#features) describes. The options are below, followed by three ways to change them.
 
 | Option | Default | What it does |
 | --- | --- | --- |
@@ -137,7 +137,19 @@ export USAGE_BAND_ICONS=unicode   # auto (default) · nerd · unicode · ascii
 | `colorCache` | `#788c5d` | Color of the cache hit rate |
 | `colorWarn` | `#b8433b` | The warning color |
 
-Thresholds run from 0 to 100. Colors are `#rrggbb` or `#rgb`; an invalid one falls back to its default. The values live in `settings.json` under `pluginConfigs["usage-band"].options`, which you can also edit by hand.
+Thresholds run from 0 to 100. Colors are `#rrggbb` or `#rgb`; an invalid one falls back to its default.
+
+**How to change them**
+
+- **`/config`**: open it in Claude Code and find the usage-band rows; the mod reloads when one changes.
+- **`/plugin configure usage-band@sorcerer-usage-band`**: lists the options in Claude Code and sets them one by one.
+- **A system terminal** (when neither command is available, on the desktop say): pipe the options you want as JSON to `claude plugin configure`, every value as a string; options you leave out keep their values. Restart Claude Code to apply.
+
+  ```bash
+  echo '{"limitWarn":"70","colorWarn":"#ff0000"}' | claude plugin configure usage-band@sorcerer-usage-band --values-stdin
+  ```
+
+The values live in `settings.json` under `pluginConfigs["usage-band@sorcerer-usage-band"].options`, which you can also edit by hand; restart Claude Code after that too.
 
 ## What the numbers mean
 

@@ -52,7 +52,7 @@ To update, run both of these, then open a new session:
 
 Terminal icons are picked automatically: Nerd Font icons in Ghostty, plain Unicode elsewhere. To override, set `USAGE_BAND_ICONS` in your shell profile to `auto`, `nerd`, `unicode` or `ascii`, e.g. `export USAGE_BAND_ICONS=unicode`.
 
-The warning thresholds and the colors are plugin options, set in `/config`: `limitWarn` (default 80), `contextWarn` (80), `cacheWarn` (50), and `colorFiveHour`, `colorSevenDay`, `colorContext`, `colorCache`, `colorWarn` as `#rrggbb` hex colors. An invalid value falls back to its default.
+The warning thresholds and the colors are plugin options: `limitWarn` (default 80), `contextWarn` (80), `cacheWarn` (50), and `colorFiveHour`, `colorSevenDay`, `colorContext`, `colorCache`, `colorWarn` as `#rrggbb` or `#rgb` hex colors. An invalid value falls back to its default. Set them in `/config` or with `/plugin configure usage-band@sorcerer-usage-band`; in a system terminal, pipe them as JSON to `claude plugin configure usage-band@sorcerer-usage-band --values-stdin` and restart Claude Code.
 
 Run `/usage-band-preview` to see the band in every terminal style side by side, including how a 256-color terminal shows the colors.
 
