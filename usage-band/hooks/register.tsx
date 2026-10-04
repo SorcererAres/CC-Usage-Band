@@ -283,29 +283,37 @@ type Group = { width: number; draw: (x: number) => Layers }
 
 // 5h 60% ▬▬▬▬── 1h49m: the figure first, so the state reads before the bar
 // 5h ▬▬▬▬▬▬──── 69% │ 1h31m: label, bar, figure, then when it resets
-const limitGroup = (id: string, label: string, l: Limit, hue: string, at: number, theme: Theme): Group => {
+const limitGroup = (
+  id: string,
+  label: string,
+  l: Limit,
+  hue: string,
+  at: number,
+  theme: Theme,
+  barW: number = D.barW,
+): Group => {
   const { pct, left } = limitNow(l, at)
   const color = pct >= theme.limitWarn ? theme.warn : hue
   const pctText = `${pct}%`
   const labelW = textW(label, D.base) + D.inner
   const pctW = textW(pctText, D.base)
-  const width = labelW + D.barW + D.inner + pctW + (left ? D.inner * 2 + 1 + textW(left, D.sm) : 0)
-  const fillW = Math.max(pct > 0 ? D.barH : 0, Math.min(D.barW, (D.barW * pct) / 100))
+  const width = labelW + barW + D.inner + pctW + (left ? D.inner * 2 + 1 + textW(left, D.sm) : 0)
+  const fillW = Math.max(pct > 0 ? D.barH : 0, Math.min(barW, (barW * pct) / 100))
   return {
     width,
     draw: x => {
       const bx = x + labelW
       const y = (D.h - D.barH) / 2
       const r = D.barH / 2
-      const px = bx + D.barW + D.inner
+      const px = bx + barW + D.inner
       const motion = [
         `<defs><clipPath id="c-${id}"><rect x="${bx}" y="${y}" width="${fillW}" height="${D.barH}" rx="${r}"/></clipPath></defs>`,
-        `<rect x="${bx}" y="${y}" width="${D.barW}" height="${D.barH}" rx="${r}" class="track" style="--h:${color}"/>`,
+        `<rect x="${bx}" y="${y}" width="${barW}" height="${D.barH}" rx="${r}" class="track" style="--h:${color}"/>`,
         `<rect x="${bx}" y="${y}" width="${fillW}" height="${D.barH}" rx="${r}" fill="${lighten(color, -0.12)}"/>`,
         // The shine crosses the whole bar on one shared clock and shows only over the fill,
         // so both bars' shines sit at the same spot at every moment
         `<g clip-path="url(#c-${id})"><rect y="${y}" width="18" height="${D.barH}" fill="url(#shine)">` +
-          `<animate attributeName="x" values="${bx - 18};${bx + D.barW};${bx + D.barW}" keyTimes="0;0.62;1" dur="2.6s" begin="${BEGIN}" repeatCount="indefinite"/></rect></g>`,
+          `<animate attributeName="x" values="${bx - 18};${bx + barW};${bx + barW}" keyTimes="0;0.62;1" dur="2.6s" begin="${BEGIN}" repeatCount="indefinite"/></rect></g>`,
       ]
       const stat = [ink(color, x, 19.5, label, D.base), ink(color, px, 19.5, pctText, D.base)]
       if (left) {
@@ -410,16 +418,17 @@ export const desktopParts = (
   t: TurnTokens | null,
   at: number,
   theme: Theme = DEFAULT_THEME,
+  barW: number = D.barW,
 ): Part[] => {
   const groups: { key: string; g: Group; alt: string }[] = []
   const five = m?.rateLimits.find(l => l.kind === 'five_hour')
   const seven = m?.rateLimits.find(l => l.kind === 'seven_day')
   if (five) {
-    const g = limitGroup('5h', '5h', five, theme.hue.five, at, theme)
+    const g = limitGroup('5h', '5h', five, theme.hue.five, at, theme, barW)
     groups.push({ key: '5h', g, alt: `5-hour limit ${limitNow(five, at).pct}% used` })
   }
   if (seven) {
-    const g = limitGroup('7d', '7d', seven, theme.hue.seven, at, theme)
+    const g = limitGroup('7d', '7d', seven, theme.hue.seven, at, theme, barW)
     groups.push({ key: '7d', g, alt: `7-day limit ${limitNow(seven, at).pct}% used` })
   }
   if (m) {
@@ -458,6 +467,30 @@ export const shineBegin = (now: number) => `-${((((now % SHINE_MS) + SHINE_MS) %
 
 export type Piece = { key: string; svg: string; width: number; height: number; alt: string }
 
+// 桌面端一列约合多少 CSS 像素。宿主只上报列数：实测这一行 95 列、宽约 768px，约 8.1px/列，取 8 偏保守
+export const PX_PER_COL = 8
+// 进度条伸缩的上下限；估算误差留出的余量（剩下的空隙由外层 space-between 吸收，不会挤到换行）
+export const BAR = { min: 40, max: 360, slack: 24 }
+
+// 额度进度条随这一行的宽度伸缩：先按长度 0 算出其余内容和组间距占多少，剩下的平分给两条进度条。
+// 没有上报宽度、或这一行没有额度进度条时用默认长度
+export const fitBarWidth = (
+  m: Measure | null,
+  t: TurnTokens | null,
+  at: number,
+  theme: Theme,
+  bodyColumns: number,
+): number => {
+  if (!(bodyColumns > 0)) return D.barW
+  const parts = desktopParts(m, t, at, theme, 0)
+  const bars = parts.filter(p => p.key === '5h' || p.key === '7d').length
+  if (bars === 0) return D.barW
+  // 外层 Box 左右各留 1 列内边距
+  const room = (bodyColumns - 2) * PX_PER_COL - BAR.slack
+  const used = parts.reduce((w, p) => w + p.width, 0) + (parts.length - 1) * D.gap
+  return Math.round(Math.min(BAR.max, Math.max(BAR.min, (room - used) / bars)))
+}
+
 // 水平自适应：每个分组和每条分隔线各是一张图片，由外层弹性布局横向铺满整行，窄时换行
 export const desktopPieces = (
   m: Measure | null,
@@ -465,9 +498,10 @@ export const desktopPieces = (
   at: number,
   theme: Theme = DEFAULT_THEME,
   begin = '0s',
+  barW: number = D.barW,
 ): Piece[] => {
   const pieces: Piece[] = []
-  desktopParts(m, t, at, theme).forEach((p, i) => {
+  desktopParts(m, t, at, theme, barW).forEach((p, i) => {
     if (i > 0) {
       pieces.push({
         key: `sep-${p.key}`,
@@ -637,10 +671,12 @@ export const register: Register = (on, options) => {
     // Desktop and mobile animate inside the SVG, so they never read the frame counter
     if (e.surface === 'desktop' || e.surface === 'mobile') {
       const { Box, Svg } = $.ui.resolve(e)
-      const band = desktopSvg(m, t, at, theme).svg
+      const barW = fitBarWidth(m, t, at, theme, e.props.bodyColumns)
+      // 宽度变了（进度条长度变了）也要整组重建
+      const band = `${barW}|${desktopSvg(m, t, at, theme).svg}`
       if (band !== lastBand) {
         lastBand = band
-        lastPieces = desktopPieces(m, t, at, theme, shineBegin(await $.clock.now()))
+        lastPieces = desktopPieces(m, t, at, theme, shineBegin(await $.clock.now()), barW)
       }
       return (
         <Box

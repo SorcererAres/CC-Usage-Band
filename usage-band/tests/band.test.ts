@@ -6,6 +6,9 @@ import {
   ctxPercent,
   desktopParts,
   desktopPieces,
+  fitBarWidth,
+  PX_PER_COL,
+  BAR,
   desktopSvg,
   shineBegin,
   detectStyle,
@@ -401,4 +404,56 @@ test('desktop pieces start every shine at the same phase of one clock', async ()
   }
   // 整张拼图（去重比较用）里没有残留占位符
   expect(desktopSvg(m, null, 0).svg).not.toContain('shine-begin')
+})
+
+test('desktop limit bars stretch with the band width, within bounds', async () => {
+  const m: Measure = {
+    context: { tokens: 192_000, window: 1_000_000, percent: 19 },
+    rateLimits: [
+      { kind: 'five_hour', percentUsed: 3 },
+      { kind: 'seven_day', percentUsed: 1 },
+    ],
+  }
+  const t = { input: 0, output: 0, cacheRead: 100, cacheWrite: 0 }
+  const w = (cols: number) => fitBarWidth(m, t, 0, DEFAULT_THEME, cols)
+  // 越宽进度条越长，且有上下限
+  expect(w(95)).toBeGreaterThan(76)
+  expect(w(120)).toBeGreaterThan(w(95))
+  expect(w(400)).toBe(BAR.max)
+  expect(w(40)).toBe(BAR.min)
+  // 没有上报宽度、或没有额度数据时保持默认长度
+  expect(w(0)).toBe(76)
+  expect(fitBarWidth({ ...m, rateLimits: [] }, t, 0, DEFAULT_THEME, 95)).toBe(76)
+  // 伸缩后整行（含组间距）不超过这一行的估算宽度，不会被挤到换行
+  for (const cols of [60, 95, 120, 160]) {
+    const pieces = desktopPieces(m, t, 0, DEFAULT_THEME, '0s', w(cols))
+    const groups = pieces.filter(p => p.alt)
+    const total = groups.reduce((n, p) => n + p.width, 0) + (groups.length - 1) * 30
+    if (w(cols) > BAR.min) expect(total).toBeLessThanOrEqual((cols - 2) * PX_PER_COL)
+  }
+  // 进度条的底轨就是这个长度
+  const svg = desktopPieces(m, t, 0, DEFAULT_THEME, '0s', 200).find(p => p.key === '5h')?.svg ?? ''
+  expect(svg).toMatch(/width="200" height="6"[^>]*class="track"/)
+})
+
+test('the desktop band sizes its bars from the columns it is given', async ($, on) => {
+  mock.clock(on)
+  on('session.measure', ($, e) => ({ changed: e.changed }))
+  await $.session.measure({
+    context: { tokens: 100_000, window: 1_000_000, percent: 10 },
+    rateLimits: [{ kind: 'five_hour', percentUsed: 50 }],
+    changed: ['context', 'rateLimits'],
+  })
+  const widthAt = async (bodyColumns: number) => {
+    const ui = await $.ui.mount({
+      plugin: 'usage-band',
+      surface: 'desktop',
+      component: 'AbovePrompt',
+      props: { ...BAND.props, bodyColumns } as never,
+    })
+    const five = (await ui.findAll({ type: 'Svg' })).find(s => s.props.alt === '5-hour limit 50% used')
+    await ui.unmount()
+    return Number(five?.props.width)
+  }
+  expect(await widthAt(60)).toBeGreaterThan(await widthAt(40))
 })
