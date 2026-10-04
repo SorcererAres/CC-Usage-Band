@@ -74,10 +74,10 @@ claude plugin test .
 
 ### 2.0.1 (2026-10-04)
 
-The author and marketplace name are now the fork's own, so it no longer clashes with the original.
+The author and marketplace name are now SorcererAres's own, so it no longer clashes with another marketplace of the same name.
 
-- **Author**: the plugin and the marketplace list SorcererAres as author, noting that this is a fork of Jetson Chan's CC-Usage-Band; the original copyright notice stays.
-- **Marketplace renamed**: from `cc-usage-band` to `sorcerer-usage-band`, so it no longer shares a name with the original and both can be added. The install command is now `/plugin install usage-band@sorcerer-usage-band`.
+- **Author**: the plugin and the marketplace list SorcererAres as author.
+- **Marketplace renamed**: from `cc-usage-band` to `sorcerer-usage-band`, so it no longer clashes with another marketplace of the same name. The install command is now `/plugin install usage-band@sorcerer-usage-band`.
 - **Moving from the old name**: if you installed under the old name, remove it and install under the new one:
 
   ```
@@ -108,7 +108,7 @@ The palette now follows Claude's brand colors.
 - **Color only on the graphics**: bars, dots and icons are slightly deepened in light mode and lifted in dark mode so they read on both; the tracks under the bars and dots are a shared warm gray.
 - **Easier to read**: secondary text such as the countdowns and `/1M` is darker in light mode, raising its contrast from 3.28 to 4.6. Graphics stay at 3:1 or more and text at 4.5:1 or more in both modes.
 - The color options in `/config` default to the new palette; set them there to bring the old colors back.
-- **Docs**: the README screenshots are replaced with previews of the band rendered in the new palette, in place of the original author's app screenshots, and are marked as rendered previews rather than app screenshots.
+- **Docs**: the README screenshots are replaced with previews of the band rendered in the new palette, in place of the earlier app screenshots, and are marked as rendered previews rather than app screenshots.
 
 ### Earlier versions
 
@@ -119,7 +119,7 @@ The palette now follows Claude's brand colors.
 - **1.4.0**: the desktop context dot matrix stretches with the window.
 - **1.3.0**: the desktop limit bars stretch with the window.
 - **1.2.0**: the desktop band spreads across the full width and wraps when the window is narrow.
-- **1.1.0 / 1.0.7**: forked from [JetsonChan/CC-Usage-Band](https://github.com/JetsonChan/CC-Usage-Band) 1.0.6. Fixes the band wrapping in CJK terminals, the terminal animation redrawing nonstop, stale readings after a limit resets and a possible `NaN%` cache hit rate; thresholds and colors are configurable in `/config`.
+- **1.1.0 / 1.0.7**: fixes the band wrapping in CJK terminals, the terminal animation redrawing nonstop, stale readings after a limit resets and a possible `NaN%` cache hit rate; thresholds and colors are configurable in `/config`.
 
 ## License
 
