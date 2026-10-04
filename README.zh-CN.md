@@ -211,18 +211,22 @@ claude plugin validate usage-band
 ├── CHANGELOG.zh-CN.md                # 更新日志（英文版为 CHANGELOG.md）
 └── usage-band/
     ├── .claude-plugin/plugin.json    # 插件信息
+    ├── hooks/hooks.json              # 指明要加载的模组文件
     ├── hooks/register.tsx            # 模组代码
     ├── types/index.d.ts              # 状态类型定义
-    └── tests/band.test.ts
+    ├── tests/band.test.ts
+    └── tsconfig.json                 # 供编辑器做类型检查
 ```
+
+在仓库根目录运行检查：
 
 ```bash
-cd usage-band
-claude plugin validate .
-claude plugin test .
+claude plugin validate .            # 校验插件市场
+claude plugin validate usage-band   # 校验插件
+claude plugin test usage-band       # 运行测试
 ```
 
-修改时用 `claude --plugin-dir ./usage-band` 加载，文件一保存，会话就会自动重新加载。`tsconfig.json` 继承的 `.claude-plugin/types/` 由 Claude Code 在加载模组时生成（已加入 `.gitignore`），所以第一次用编辑器做类型检查之前，需要先这样加载一次。
+修改时用 `claude --plugin-dir ./usage-band` 加载，文件一保存，会话就会自动重新加载。`usage-band/tsconfig.json` 继承的 `usage-band/.claude-plugin/types/` 由 Claude Code 在加载模组时生成（已加入 `.gitignore`），所以第一次用编辑器做类型检查之前，需要先这样加载一次。
 
 推送到 `main` 或提交 Pull Request 时，GitHub Actions 会自动运行同样的校验和测试。
 

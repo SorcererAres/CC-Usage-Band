@@ -209,18 +209,22 @@ claude plugin validate usage-band
 ├── CHANGELOG.md                      # changelog (Chinese: CHANGELOG.zh-CN.md)
 └── usage-band/
     ├── .claude-plugin/plugin.json    # manifest
+    ├── hooks/hooks.json              # tells Claude Code which module to load
     ├── hooks/register.tsx            # the mod
     ├── types/index.d.ts              # state contract
-    └── tests/band.test.ts
+    ├── tests/band.test.ts
+    └── tsconfig.json                 # for type-checking in an editor
 ```
+
+Run the checks from the repository root:
 
 ```bash
-cd usage-band
-claude plugin validate .
-claude plugin test .
+claude plugin validate .            # the marketplace
+claude plugin validate usage-band   # the plugin
+claude plugin test usage-band
 ```
 
-While editing, load it with `claude --plugin-dir ./usage-band`; the session reloads it when a file changes. `tsconfig.json` extends `.claude-plugin/types/`, which Claude Code writes when it loads the mod (it is git-ignored), so load it this way once before type-checking in an editor.
+While editing, load it with `claude --plugin-dir ./usage-band`; the session reloads it when a file changes. `usage-band/tsconfig.json` extends `usage-band/.claude-plugin/types/`, which Claude Code writes when it loads the mod (it is git-ignored), so load it this way once before type-checking in an editor.
 
 GitHub Actions runs the same checks and tests on every push to `main` and on every pull request.
 
