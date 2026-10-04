@@ -4,8 +4,10 @@ import {
   bar,
   columns,
   ctxPercent,
+  desktopParts,
+  desktopPieces,
   desktopSvg,
-  describe,
+  shineBegin,
   detectStyle,
   fit,
   fmtLeft,
@@ -43,6 +45,7 @@ test('formats tokens, countdowns and hit rate', async () => {
 })
 
 test('band shows limits, context and the last turn on terminal and desktop', async ($, on) => {
+  mock.clock(on)
   on('session.measure', ($, e) => ({ changed: e.changed }))
   on('turn.complete', () => ({ text: '' }))
 
@@ -70,13 +73,21 @@ test('band shows limits, context and the last turn on terminal and desktop', asy
   })
 
   const desk = await $.ui.mount({ plugin: 'usage-band', surface: 'desktop', ...BAND })
-  // One SVG for the band, drawn as an image (a framed SVG blinks on every redraw), with hairlines
-  // between the four groups
-  const svg = await desk.find({ type: 'Svg' })
-  expect(svg?.props.alt).toBe('5-hour limit 20% used, 7-day limit 58% used, context 100K of 1M, cache hit 90%')
-  expect(svg?.props.isInteractive).toBeFalsy()
-  expect(String(svg?.props.source)).toContain('<animate')
-  expect(String(svg?.props.source).match(/class="sep"/g)?.length).toBe(3)
+  // 每组一张图片（不用会在重绘时闪烁的交互式 SVG），四组之间各一条分隔线，由弹性布局横向铺满
+  const svgs = await desk.findAll({ type: 'Svg' })
+  expect(svgs.map(s => s.props.alt).filter(Boolean)).toEqual([
+    '5-hour limit 20% used',
+    '7-day limit 58% used',
+    'context 100K of 1M',
+    'cache hit 90%',
+  ])
+  expect(svgs.length).toBe(7)
+  expect(svgs.filter(s => String(s.props.source).includes('class="sep"')).length).toBe(3)
+  for (const s of svgs) expect(s.props.isInteractive).toBeFalsy()
+  expect(String(svgs[0]?.props.source)).toContain('<animate')
+  const row = await desk.find({ type: 'Box' })
+  expect(row?.props.justifyContent).toBe('space-between')
+  expect(row?.props.flexWrap).toBe('wrap')
   expect(await desk.find({ type: 'Text' })).toBeUndefined()
   await desk.unmount()
 
@@ -163,7 +174,7 @@ test('a window past its reset shows 0% with no countdown until the next reading'
   const spans = layout(m, null, at, 1)
   expect(spans.some(s => s.text === '0%')).toBe(true)
   expect(spans.some(s => s.text.includes('·'))).toBe(false)
-  expect(describe(m, null, at)).toContain('5-hour limit 0% used')
+  expect(desktopParts(m, null, at)[0]?.alt).toBe('5-hour limit 0% used')
   expect(desktopSvg(m, null, at).svg).not.toContain('class="rule"')
 })
 
@@ -352,6 +363,7 @@ test(
   'the band reads its colors and thresholds from the plugin options',
   { options: { limitWarn: 50, colorWarn: '#ff0000', colorContext: '#0000ff' } },
   async ($, on) => {
+    mock.clock(on)
     on('session.measure', ($, e) => ({ changed: e.changed }))
     await $.session.measure({
       context: { tokens: 100_000, window: 1_000_000, percent: 10 },
@@ -367,3 +379,26 @@ test(
     await desk.unmount()
   },
 )
+
+test('desktop pieces start every shine at the same phase of one clock', async () => {
+  expect(shineBegin(0)).toBe('-0.00s')
+  expect(shineBegin(2_600 * 1000 + 1_300)).toBe('-1.30s')
+  const m: Measure = {
+    context: { tokens: 400_000, window: 1_000_000, percent: 40 },
+    rateLimits: [
+      { kind: 'five_hour', percentUsed: 30 },
+      { kind: 'seven_day', percentUsed: 60 },
+    ],
+  }
+  const pieces = desktopPieces(m, null, 0, undefined, '-1.30s')
+  const begins = pieces.flatMap(p => [...p.svg.matchAll(/begin="([^"]+)"/g)].map(x => x[1]))
+  // 两条进度条和上下文点阵，三处扫光同一个起点
+  expect(begins).toEqual(['-1.30s', '-1.30s', '-1.30s'])
+  // 每张图都是完整的 SVG 文档，带自己的样式（深色模式）和渐变定义
+  for (const p of pieces) {
+    expect(p.svg.startsWith('<svg')).toBe(true)
+    expect(p.svg).toContain('prefers-color-scheme:dark')
+  }
+  // 整张拼图（去重比较用）里没有残留占位符
+  expect(desktopSvg(m, null, 0).svg).not.toContain('shine-begin')
+})

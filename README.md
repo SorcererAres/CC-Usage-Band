@@ -47,7 +47,7 @@ English · [简体中文](./README.zh-CN.md)
 
 - **Glanceable.** Each metric has its own color. It turns red only when it needs you: by default a limit or the context past 80%, or a cache hit rate under 50%. Both the thresholds and the colors are [configurable](#configuration).
 - **Alive, not noisy.** A slow shine sweeps across the limit bars, every bar in step.
-- **Native on both surfaces.** Terminal: a character line with Nerd Font or Unicode icons that fits itself to the window width. Desktop app: a centered SVG row with bars, a 2×10 dot matrix for the context window, and light and dark mode.
+- **Native on both surfaces.** Terminal: a character line with Nerd Font or Unicode icons that fits itself to the window width. Desktop app: an SVG row that spreads across the full width and wraps when the window is narrow, with bars, a 2×10 dot matrix for the context window, and light and dark mode.
 - **Light.** No files read, no processes, no network. It only listens to the usage figures Claude Code already has.
 
 ## Requirements

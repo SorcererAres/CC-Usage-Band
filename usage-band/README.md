@@ -20,7 +20,7 @@ The line fits itself to the terminal width: on a narrow terminal it drops the ba
 
 **Desktop app (Code tab)**
 
-A single centered row drawn as SVG: limit bars with the figure and reset time beside them, the context window as a 2×10 dot matrix (each dot is 5% of the window), and the cache hit rate. Hairlines separate the groups. It follows the app's light and dark mode.
+A row of SVG groups that spreads across the full width of the band and wraps onto a second line when the window is narrow: limit bars with the figure and reset time beside them, the context window as a 2×10 dot matrix (each dot is 5% of the window), and the cache hit rate. Hairlines separate the groups. It follows the app's light and dark mode.
 
 ## Install
 

@@ -273,6 +273,10 @@ const ink = (hue: string, x: number, y: number, v: string, size: number) =>
 const mute = (x: number, y: number, v: string, size: number) =>
   `<text x="${x}" y="${y}" font-size="${size}" ${pinW(v, size)} class="mute">${esc(v)}</text>`
 
+// 扫光动画的起点占位符：整张拼图（去重比较、测试）里换成 0s，分组图片里换成按时钟对齐的相位
+const BEGIN = '{{shine-begin}}'
+export const SHINE_MS = 2600
+
 // stat: type, icons and rules; motion: bars and dots with their shine
 type Layers = { stat: string; motion: string }
 type Group = { width: number; draw: (x: number) => Layers }
@@ -301,7 +305,7 @@ const limitGroup = (id: string, label: string, l: Limit, hue: string, at: number
         // The shine crosses the whole bar on one shared clock and shows only over the fill,
         // so both bars' shines sit at the same spot at every moment
         `<g clip-path="url(#c-${id})"><rect y="${y}" width="18" height="${D.barH}" fill="url(#shine)">` +
-          `<animate attributeName="x" values="${bx - 18};${bx + D.barW};${bx + D.barW}" keyTimes="0;0.62;1" dur="2.6s" repeatCount="indefinite"/></rect></g>`,
+          `<animate attributeName="x" values="${bx - 18};${bx + D.barW};${bx + D.barW}" keyTimes="0;0.62;1" dur="2.6s" begin="${BEGIN}" repeatCount="indefinite"/></rect></g>`,
       ]
       const stat = [ink(color, x, 19.5, label, D.base), ink(color, px, 19.5, pctText, D.base)]
       if (left) {
@@ -376,7 +380,7 @@ const ctxGroup = (hue: string, tokens: number, window: number, pct: number): Gro
           `<g class="track" style="--h:${hue}">${off}</g>` +
           `<g fill="${lighten(hue, -0.12)}">${on}</g>` +
           `<g clip-path="url(#c-ctx)"><rect y="8" width="18" height="14" fill="url(#shine)">` +
-          `<animate attributeName="x" values="${mx - 18};${mx + matrixW};${mx + matrixW}" keyTimes="0;0.62;1" dur="2.6s" repeatCount="indefinite"/></rect></g>`,
+          `<animate attributeName="x" values="${mx - 18};${mx + matrixW};${mx + matrixW}" keyTimes="0;0.62;1" dur="2.6s" begin="${BEGIN}" repeatCount="indefinite"/></rect></g>`,
       }
     },
   }
@@ -399,7 +403,7 @@ const SVG_HEAD =
 const wrap = (width: number, body: string) =>
   `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${D.h}" viewBox="0 0 ${width} ${D.h}" style="color-scheme:light dark;background:transparent">${SVG_HEAD}${body}</svg>`
 
-export type Part = Layers & { width: number }
+export type Part = Layers & { key: string; width: number; alt: string }
 
 export const desktopParts = (
   m: Measure | null,
@@ -407,18 +411,31 @@ export const desktopParts = (
   at: number,
   theme: Theme = DEFAULT_THEME,
 ): Part[] => {
-  const groups: Group[] = []
+  const groups: { key: string; g: Group; alt: string }[] = []
   const five = m?.rateLimits.find(l => l.kind === 'five_hour')
   const seven = m?.rateLimits.find(l => l.kind === 'seven_day')
-  if (five) groups.push(limitGroup('5h', '5h', five, theme.hue.five, at, theme))
-  if (seven) groups.push(limitGroup('7d', '7d', seven, theme.hue.seven, at, theme))
+  if (five) {
+    const g = limitGroup('5h', '5h', five, theme.hue.five, at, theme)
+    groups.push({ key: '5h', g, alt: `5-hour limit ${limitNow(five, at).pct}% used` })
+  }
+  if (seven) {
+    const g = limitGroup('7d', '7d', seven, theme.hue.seven, at, theme)
+    groups.push({ key: '7d', g, alt: `7-day limit ${limitNow(seven, at).pct}% used` })
+  }
   if (m) {
     const pct = ctxPercent(m.context)
-    groups.push(ctxGroup(pct >= theme.contextWarn ? theme.warn : theme.hue.ctx, m.context.tokens ?? 0, m.context.window, pct))
+    groups.push({
+      key: 'ctx',
+      g: ctxGroup(pct >= theme.contextWarn ? theme.warn : theme.hue.ctx, m.context.tokens ?? 0, m.context.window, pct),
+      alt: `context ${fmtTokens(m.context.tokens ?? 0)} of ${fmtTokens(m.context.window)}`,
+    })
   }
   const hit = t ? hitRate(t) : null
-  if (hit !== null) groups.push(typeGroup(targetIcon, hit < theme.cacheWarn ? theme.warn : theme.hue.cache, `${hit}%`, ''))
-  return groups.map(g => ({ ...g.draw(1), width: Math.ceil(g.width + 2) }))
+  if (hit !== null) {
+    const g = typeGroup(targetIcon, hit < theme.cacheWarn ? theme.warn : theme.hue.cache, `${hit}%`, '')
+    groups.push({ key: 'hit', g, alt: `cache hit ${hit}%` })
+  }
+  return groups.map(({ key, g, alt }) => ({ ...g.draw(1), key, alt, width: Math.ceil(g.width + 2) }))
 }
 
 // One SVG for the whole band, so every shine runs on the same clock. Groups sit D.gap apart
@@ -432,20 +449,38 @@ export const desktopSvg = (m: Measure | null, t: TurnTokens | null, at: number, 
     x += p.width + D.gap
   })
   const width = Math.max(1, Math.ceil(x - D.gap))
-  return { svg: wrap(width, body.join('')), width, height: D.h }
+  return { svg: wrap(width, body.join('').split(BEGIN).join('0s')), width, height: D.h }
 }
 
-// SVG 的无障碍文字（alt），读数与图上一致
-export const describe = (m: Measure | null, t: TurnTokens | null, at: number) => {
-  const parts: string[] = []
-  for (const l of m?.rateLimits ?? []) {
-    if (l.kind === 'five_hour') parts.push(`5-hour limit ${limitNow(l, at).pct}% used`)
-    if (l.kind === 'seven_day') parts.push(`7-day limit ${limitNow(l, at).pct}% used`)
-  }
-  if (m) parts.push(`context ${fmtTokens(m.context.tokens ?? 0)} of ${fmtTokens(m.context.window)}`)
-  const hit = t ? hitRate(t) : null
-  if (hit !== null) parts.push(`cache hit ${hit}%`)
-  return parts.join(', ')
+// 每张分组图片的 SMIL 时钟从图片载入时起算。把扫光的起点设成「此刻在周期里的相位」取负，
+// 同一次绘制载入的图片就都对齐到同一个时钟上，拆成多张图后扫光依旧同步
+export const shineBegin = (now: number) => `-${((((now % SHINE_MS) + SHINE_MS) % SHINE_MS) / 1000).toFixed(2)}s`
+
+export type Piece = { key: string; svg: string; width: number; height: number; alt: string }
+
+// 水平自适应：每个分组和每条分隔线各是一张图片，由外层弹性布局横向铺满整行，窄时换行
+export const desktopPieces = (
+  m: Measure | null,
+  t: TurnTokens | null,
+  at: number,
+  theme: Theme = DEFAULT_THEME,
+  begin = '0s',
+): Piece[] => {
+  const pieces: Piece[] = []
+  desktopParts(m, t, at, theme).forEach((p, i) => {
+    if (i > 0) {
+      pieces.push({
+        key: `sep-${p.key}`,
+        svg: wrap(1, `<rect x="0" y="7" width="1" height="16" class="sep"/>`),
+        width: 1,
+        height: D.h,
+        alt: '',
+      })
+    }
+    const body = `${p.stat}${p.motion}`.split(BEGIN).join(begin)
+    pieces.push({ key: p.key, svg: wrap(p.width, body), width: p.width, height: D.h, alt: p.alt })
+  })
+  return pieces
 }
 
 // The desktop app redraws the band, and its frame blinks, on every write a drawing reads. So a
@@ -509,6 +544,10 @@ export const register: Register = (on, options) => {
   // 进度条不在屏上（问卷占位、窄屏去掉了进度条、没有额度数据）时帧计数就停下，不再每秒重绘 5 次；
   // 回到屏上的那次绘制会让它继续
   let isShining = false
+  // 桌面端上一次画出的分组图片。显示内容不变时原样复用，图片不会重新载入；
+  // 内容一变就整组按新相位重建，所有图片一起重新载入，扫光仍然对齐
+  let lastBand = ''
+  let lastPieces: Piece[] = []
 
   on('session.start', async ($, e, next) => {
     const result = await next(e)
@@ -598,10 +637,23 @@ export const register: Register = (on, options) => {
     // Desktop and mobile animate inside the SVG, so they never read the frame counter
     if (e.surface === 'desktop' || e.surface === 'mobile') {
       const { Box, Svg } = $.ui.resolve(e)
-      const { svg, width, height } = desktopSvg(m, t, at, theme)
+      const band = desktopSvg(m, t, at, theme).svg
+      if (band !== lastBand) {
+        lastBand = band
+        lastPieces = desktopPieces(m, t, at, theme, shineBegin(await $.clock.now()))
+      }
       return (
-        <Box flexDirection="row" justifyContent="center" flexGrow={1} paddingX={1}>
-          <Svg source={svg} alt={describe(m, t, at)} width={width} height={height} />
+        <Box
+          flexDirection="row"
+          flexWrap="wrap"
+          justifyContent="space-between"
+          alignItems="center"
+          flexGrow={1}
+          paddingX={1}
+        >
+          {lastPieces.map(p => (
+            <Svg key={p.key} source={p.svg} alt={p.alt} width={p.width} height={p.height} />
+          ))}
         </Box>
       )
     }
