@@ -8,6 +8,14 @@ A Claude Code mod that puts a one-line band above the prompt with what you need 
 
 The figures stay neutral and the graphics carry Claude's brand colors (blue for the limits, Claude orange for the context, olive for the cache); a metric turns red when it needs attention: by default a limit or the context past 80%, or a cache hit rate under 50% (both configurable, see Settings). The limit bars carry a slow shine that sweeps left to right, in step across bars.
 
+> **What's new in 2.0.0**
+>
+> - On the desktop, Claude now draws the text, so it uses the app's own font (Anthropic Sans) and follows light and dark mode.
+> - Colors that match Claude: neutral figures, with the bars, dots and icons in Claude's brand colors (since 1.9.0).
+> - Warning text at a lightness that reads on both light and dark bands.
+>
+> Already installed? Run `/plugin marketplace update cc-usage-band`. The full list is in the [changelog](#changelog).
+
 ## How it looks
 
 **Terminal**

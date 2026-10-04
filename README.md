@@ -23,6 +23,14 @@ English · [简体中文](./README.zh-CN.md)
 >
 > *usage-band is installed. Open a new session (or run `/reload-plugins`) and a line above the prompt shows your 5h and 7d limits, context window and cache hit rate. Nothing to configure.*
 
+> **What's new in 2.0.0**
+>
+> - On the desktop, Claude now draws the text, so it uses the app's own font (Anthropic Sans) and follows light and dark mode.
+> - Colors that match Claude: neutral figures, with the bars, dots and icons in Claude's brand colors (since 1.9.0).
+> - Warning text at a lightness that reads on both light and dark bands.
+>
+> Already installed? Run `/plugin marketplace update cc-usage-band`. The full list is in the [changelog](#changelog).
+
 ## Contents
 
 - [Features](#features)
