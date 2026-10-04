@@ -167,10 +167,17 @@ export USAGE_BAND_ICONS=unicode   # auto（默认）· nerd · unicode · ascii
 | --- | --- | --- |
 | Ghostty | Nerd Font（自带） | 真彩色 |
 | iTerm2、WezTerm、kitty、Warp | Unicode（`≡` `●`） | 真彩色 |
-| macOS 自带终端 | Unicode | 256 色，自动换算 |
+| macOS 自带终端 | Unicode | 256 色（由 Claude Code 自动换算） |
 | 其他终端 | Unicode | 按终端支持的颜色显示 |
+| VS Code 扩展面板 | 始终是 Unicode | 真彩色 |
 
-如果图标显示成方框，设置 `USAGE_BAND_ICONS=unicode` 就行（见[设置](#设置)）。
+插件输出的始终是真彩色；终端只支持 256 色时，由 Claude Code 自动换算成最接近的颜色。
+
+几种需要手动设置图标的情况（设置方法见[设置](#设置)）：
+
+- **图标显示成方框**：如果是 Nerd Font 图标显示不出来，设置 `USAGE_BAND_ICONS=unicode`；如果连 `≡`、`●` 也显示成方框，设置 `USAGE_BAND_ICONS=ascii`，改用 `ctx`、`hit` 这样的文字。
+- **在 tmux 或 SSH 里**：插件靠环境变量 `TERM_PROGRAM` 识别 Ghostty。tmux 会把它改成 `tmux`，SSH 默认不传这个变量，所以在 Ghostty 里也会退回 Unicode 图标。想用 Nerd Font 图标，设置 `USAGE_BAND_ICONS=nerd`。
+- **VS Code 扩展面板**：固定用 Unicode 图标，`USAGE_BAND_ICONS` 不起作用。在 VS Code 的内置终端里运行 `claude` 不受影响，按终端处理。
 
 `■`、`●`、`≡`、`·` 和 Nerd Font 图标属于东亚「宽度不确定」字符，在中文、日文等 CJK 环境或开启了双宽显示的终端里会占两列。这一行估算宽度时一律按两列计算，所以不会溢出折行，代价是窄终端里会稍早去掉进度条。可以运行 `/usage-band-preview`，在你自己的终端里对比所有样式。
 

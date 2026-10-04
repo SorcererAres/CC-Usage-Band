@@ -165,10 +165,17 @@ The values live in `settings.json` under `pluginConfigs["usage-band@sorcerer-usa
 | --- | --- | --- |
 | Ghostty | Nerd Font (built in) | Truecolor |
 | iTerm2, WezTerm, kitty, Warp | Unicode (`≡` `●`) | Truecolor |
-| macOS Terminal | Unicode | 256 colors, mapped automatically |
+| macOS Terminal | Unicode | 256 colors (Claude Code maps them) |
 | Anything else | Unicode | Whatever the terminal reports |
+| VS Code extension panel | Always Unicode | Truecolor |
 
-If icons show as boxes, set `USAGE_BAND_ICONS=unicode` (see [Configuration](#configuration)).
+The mod always emits truecolor; on a terminal limited to 256 colors, Claude Code maps each to the nearest one.
+
+When to set the icons yourself (how: see [Configuration](#configuration)):
+
+- **Icons show as boxes**: if it's the Nerd Font icons, set `USAGE_BAND_ICONS=unicode`; if even `≡` and `●` are boxes, set `USAGE_BAND_ICONS=ascii` for plain `ctx` and `hit` labels.
+- **Inside tmux or over SSH**: the mod spots Ghostty through `TERM_PROGRAM`. tmux sets it to `tmux` and SSH doesn't pass it on by default, so even in Ghostty the icons fall back to Unicode. Set `USAGE_BAND_ICONS=nerd` to keep the Nerd Font icons.
+- **The VS Code extension panel**: always uses Unicode icons, and `USAGE_BAND_ICONS` has no effect there. Running `claude` in VS Code's integrated terminal counts as a terminal and is unaffected.
 
 `■`, `●`, `≡`, `·` and the Nerd Font icons are East Asian Ambiguous width: a CJK locale, or a terminal set to draw them double-width, gives each two columns. The band budgets them two columns when it fits itself to the width, so it never wraps; on a narrow terminal it drops the bars a little sooner. Run `/usage-band-preview` to compare every style in your own terminal.
 
