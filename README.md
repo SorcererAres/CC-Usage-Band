@@ -170,7 +170,7 @@ Issues and pull requests are welcome.
 
 ## Screenshots
 
-These images are rendered from the SVG and terminal text the mod output in 1.9.0, inside a frame styled after Claude Code; they are not screenshots of the app. Since 2.0.0 the desktop text uses Claude's own font, so the letterforms differ slightly.
+These images are rendered from what the mod outputs, inside a frame styled after Claude Code; they are not screenshots of the app. On the desktop the graphics are the mod's SVG and the text is set in Anthropic Sans the way Claude draws it; Claude decides the text size and color, so those are approximate here.
 
 **Desktop app, light mode**
 
