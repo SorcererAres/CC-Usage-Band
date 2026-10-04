@@ -31,7 +31,7 @@
 > - 配色跟 Claude 一致：数字保持中性，进度条、点阵和图标用 Claude 的品牌色（1.9.0 起）。
 > - 警示文字调到在浅色和深色底上都看得清的亮度。
 >
-> 已安装的用户运行 `/plugin marketplace update sorcerer-usage-band` 即可更新。完整内容见[更新日志](#更新日志)。
+> 已安装的用户依次运行 `/plugin marketplace update sorcerer-usage-band` 和 `/plugin update usage-band@sorcerer-usage-band`，再新开一个会话即可更新。完整内容见[更新日志](#更新日志)。
 
 ## 目录
 
@@ -82,6 +82,14 @@
 
 - 想在当前会话里马上看到？输入 `/reload-plugins`。
 - 5h 和 7d 额度要等会话里 Claude 第一次回复后才会显示。
+- **用不了 `/plugin` 命令？**（比如在桌面端）在系统终端里运行同样的两步：
+
+  ```bash
+  claude plugin marketplace add SorcererAres/CC-Usage-Band
+  claude plugin install usage-band@sorcerer-usage-band
+  ```
+
+- 用旧名称 `cc-usage-band` 装过的，先按[更新日志](#更新日志)里 2.0.1 的迁移步骤换成新名称。
 
 如果只想在一个会话里临时试用，可以从本地克隆后加载：
 
@@ -94,13 +102,19 @@ claude --plugin-dir CC-Usage-Band/usage-band
 
 ```
 /plugin marketplace update sorcerer-usage-band
+/plugin update usage-band@sorcerer-usage-band
 ```
+
+第一条刷新插件市场里的版本信息，第二条才会把已装的插件更新到最新版本。更新后新开一个会话才会生效。在系统终端里把 `/plugin` 换成 `claude plugin` 也一样。
 
 **卸载**
 
 ```
 /plugin uninstall usage-band@sorcerer-usage-band
+/plugin marketplace remove sorcerer-usage-band
 ```
+
+第二条可选：把插件市场也一并移除。
 
 ## 设置
 

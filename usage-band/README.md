@@ -14,7 +14,7 @@ The figures stay neutral and the graphics carry Claude's brand colors (blue for 
 > - Colors that match Claude: neutral figures, with the bars, dots and icons in Claude's brand colors (since 1.9.0).
 > - Warning text at a lightness that reads on both light and dark bands.
 >
-> Already installed? Run `/plugin marketplace update sorcerer-usage-band`. The full list is in the [changelog](#changelog).
+> Already installed? Run `/plugin marketplace update sorcerer-usage-band`, then `/plugin update usage-band@sorcerer-usage-band`, and open a new session. The full list is in the [changelog](#changelog).
 
 ## How it looks
 
@@ -38,6 +38,15 @@ A row of SVG groups that spreads across the full width of the band and wraps ont
 ```
 
 Then open a new session (or run `/reload-plugins`). Nothing to configure. Best in [Ghostty](https://ghostty.org), which ships the icon font.
+
+If `/plugin` isn't available (on the desktop, say), run the same commands in a system terminal with `claude plugin` in place of `/plugin`.
+
+To update, run both of these, then open a new session:
+
+```
+/plugin marketplace update sorcerer-usage-band
+/plugin update usage-band@sorcerer-usage-band
+```
 
 ## Settings
 

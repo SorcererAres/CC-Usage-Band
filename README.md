@@ -31,7 +31,7 @@ English · [简体中文](./README.zh-CN.md)
 > - Colors that match Claude: neutral figures, with the bars, dots and icons in Claude's brand colors (since 1.9.0).
 > - Warning text at a lightness that reads on both light and dark bands.
 >
-> Already installed? Run `/plugin marketplace update sorcerer-usage-band`. The full list is in the [changelog](#changelog).
+> Already installed? Run `/plugin marketplace update sorcerer-usage-band`, then `/plugin update usage-band@sorcerer-usage-band`, and open a new session. The full list is in the [changelog](#changelog).
 
 ## Contents
 
@@ -80,6 +80,14 @@ Then **open a new session**. The band appears above the prompt. That's it, nothi
 
 - Want it in the current session right away? Run `/reload-plugins`.
 - The 5h and 7d figures show up after Claude's first reply in the session.
+- **Can't use `/plugin`?** (on the desktop, say) Run the same two steps in a system terminal:
+
+  ```bash
+  claude plugin marketplace add SorcererAres/CC-Usage-Band
+  claude plugin install usage-band@sorcerer-usage-band
+  ```
+
+- Installed under the old name `cc-usage-band`? Move to the new name first with the 2.0.1 steps in the [changelog](#changelog).
 
 To try it for one session from a local checkout instead:
 
@@ -92,13 +100,19 @@ claude --plugin-dir CC-Usage-Band/usage-band
 
 ```
 /plugin marketplace update sorcerer-usage-band
+/plugin update usage-band@sorcerer-usage-band
 ```
+
+The first refreshes the marketplace's version list; the second is what updates the installed plugin. The update takes effect in a new session. In a system terminal, use `claude plugin` in place of `/plugin`.
 
 **Uninstall**
 
 ```
 /plugin uninstall usage-band@sorcerer-usage-band
+/plugin marketplace remove sorcerer-usage-band
 ```
+
+The second is optional: it removes the marketplace too.
 
 ## Configuration
 
