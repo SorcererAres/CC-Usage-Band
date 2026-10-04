@@ -31,7 +31,7 @@
 > - 配色跟 Claude 一致：数字保持中性，进度条、点阵和图标用 Claude 的品牌色（1.9.0 起）。
 > - 警示文字调到在浅色和深色底上都看得清的亮度。
 >
-> 已安装的用户依次运行 `/plugin marketplace update sorcerer-usage-band` 和 `/plugin update usage-band@sorcerer-usage-band`，再新开一个会话即可更新。完整内容见[更新日志](./CHANGELOG.zh-CN.md)。
+> 已安装的用户在系统终端里依次运行 `claude plugin marketplace update sorcerer-usage-band` 和 `claude plugin update usage-band@sorcerer-usage-band`，再新开一个会话即可更新。完整内容见[更新日志](./CHANGELOG.zh-CN.md)。
 
 ## 目录
 
@@ -78,7 +78,7 @@
 /plugin install usage-band@sorcerer-usage-band
 ```
 
-然后**新开一个会话**，输入框上方就会出现这一行。就这么简单，不需要任何配置。
+第二条命令会打开插件的详情页，在里面选 **Install for you (user scope)** 才算装上。然后**新开一个会话**，输入框上方就会出现这一行。就这么简单，不需要任何配置。
 
 - 想在当前会话里马上看到？输入 `/reload-plugins`。
 - 5h 和 7d 额度要等会话里 Claude 第一次回复后才会显示。
@@ -100,12 +100,14 @@ claude --plugin-dir CC-Usage-Band/usage-band
 
 **更新**
 
-```
-/plugin marketplace update sorcerer-usage-band
-/plugin update usage-band@sorcerer-usage-band
+Claude Code 里没有 `/plugin update` 这个命令，更新要在系统终端里运行这两条：
+
+```bash
+claude plugin marketplace update sorcerer-usage-band
+claude plugin update usage-band@sorcerer-usage-band
 ```
 
-第一条刷新插件市场里的版本信息，第二条才会把已装的插件更新到最新版本。更新后新开一个会话才会生效。在系统终端里把 `/plugin` 换成 `claude plugin` 也一样。
+第一条刷新插件市场里的版本信息，第二条才会把已装的插件更新到最新版本。更新后新开一个会话才会生效。如果想留在 Claude Code 的终端会话里操作，输入 `/plugin`，切到 **Marketplaces** 页，选中 `sorcerer-usage-band`，再选 **Update marketplace**，它会把这两步一起做完。
 
 **卸载**
 
@@ -114,7 +116,7 @@ claude --plugin-dir CC-Usage-Band/usage-band
 /plugin marketplace remove sorcerer-usage-band
 ```
 
-第二条可选：把插件市场也一并移除。
+第二条可选：把插件市场也一并移除。在系统终端里把 `/plugin` 换成 `claude plugin` 也一样。
 
 ## 设置
 

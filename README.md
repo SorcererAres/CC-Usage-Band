@@ -31,7 +31,7 @@ English · [简体中文](./README.zh-CN.md)
 > - Colors that match Claude: neutral figures, with the bars, dots and icons in Claude's brand colors (since 1.9.0).
 > - Warning text at a lightness that reads on both light and dark bands.
 >
-> Already installed? Run `/plugin marketplace update sorcerer-usage-band`, then `/plugin update usage-band@sorcerer-usage-band`, and open a new session. The full list is in the [changelog](./CHANGELOG.md).
+> Already installed? In a system terminal, run `claude plugin marketplace update sorcerer-usage-band`, then `claude plugin update usage-band@sorcerer-usage-band`, and open a new session. The full list is in the [changelog](./CHANGELOG.md).
 
 ## Contents
 
@@ -76,7 +76,7 @@ Run these two commands inside Claude Code:
 /plugin install usage-band@sorcerer-usage-band
 ```
 
-Then **open a new session**. The band appears above the prompt. That's it, nothing to configure.
+The second command opens the plugin's details: choose **Install for you (user scope)** there to install it. Then **open a new session**. The band appears above the prompt. That's it, nothing to configure.
 
 - Want it in the current session right away? Run `/reload-plugins`.
 - The 5h and 7d figures show up after Claude's first reply in the session.
@@ -98,12 +98,14 @@ claude --plugin-dir CC-Usage-Band/usage-band
 
 **Update**
 
-```
-/plugin marketplace update sorcerer-usage-band
-/plugin update usage-band@sorcerer-usage-band
+Claude Code has no `/plugin update` command, so run these two in a system terminal:
+
+```bash
+claude plugin marketplace update sorcerer-usage-band
+claude plugin update usage-band@sorcerer-usage-band
 ```
 
-The first refreshes the marketplace's version list; the second is what updates the installed plugin. The update takes effect in a new session. In a system terminal, use `claude plugin` in place of `/plugin`.
+The first refreshes the marketplace's version list; the second is what updates the installed plugin. The update takes effect in a new session. To stay inside a Claude Code terminal session instead, run `/plugin`, open the **Marketplaces** tab, select `sorcerer-usage-band` and choose **Update marketplace**, which does both.
 
 **Uninstall**
 
@@ -112,7 +114,7 @@ The first refreshes the marketplace's version list; the second is what updates t
 /plugin marketplace remove sorcerer-usage-band
 ```
 
-The second is optional: it removes the marketplace too.
+The second is optional: it removes the marketplace too. In a system terminal, use `claude plugin` in place of `/plugin`.
 
 ## Configuration
 
