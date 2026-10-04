@@ -232,7 +232,7 @@ Issues and pull requests are welcome; pick the bug report or feature request tem
 
 ## Previews
 
-These images are rendered from what the mod outputs, inside a frame styled after Claude Code; they are not screenshots of the app. On the desktop the graphics are the mod's SVG and the text is set in Anthropic Sans the way Claude draws it; Claude decides the text size and color, so those are approximate here.
+These images are rendered from what the mod outputs, inside a frame styled after Claude Code; they are not screenshots of the app. On the desktop the graphics are the mod's SVG and the text is set in Anthropic Sans the way Claude draws it; Claude decides the text size and color (the warning color aside, which the mod sets), so those are approximate here.
 
 **Desktop app, light mode**
 

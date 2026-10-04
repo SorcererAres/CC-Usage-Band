@@ -234,7 +234,7 @@ claude plugin test usage-band       # 运行测试
 
 ## 预览图
 
-以下图片由插件实际输出渲染而成，外框按 Claude Code 的样式仿制，并非应用界面截图。桌面端的图形是插件输出的 SVG，文字按 Claude 的方式以 Anthropic Sans 排版；文字的字号和颜色由 Claude 决定，图中为近似值。
+以下图片由插件实际输出渲染而成，外框按 Claude Code 的样式仿制，并非应用界面截图。桌面端的图形是插件输出的 SVG，文字按 Claude 的方式以 Anthropic Sans 排版；文字的字号和颜色由 Claude 决定（警示色除外，由插件指定），图中为近似值。
 
 **桌面端，浅色模式**
 
