@@ -155,9 +155,9 @@ The values live in `settings.json` under `pluginConfigs["usage-band@sorcerer-usa
 
 | Metric | Source | Notes |
 | --- | --- | --- |
-| 5h / 7d | The rate-limit windows Claude Code reads from each API response | Rounded to whole percent. The reset time counts down every minute. Once the reset time passes with no new response in the session, the window shows 0% and no countdown. |
+| 5h / 7d | The rate-limit windows Claude Code reads from each API response | Rounded to whole percent. The countdown reads `42m` under an hour, `3h14m` under a day and `5d3h` beyond; it is checked every minute and redrawn only when the figure changes, so past a day it moves about once an hour. Once the reset time passes with no new response in the session, the window shows 0% and no countdown. |
 | Context | The last request's input: uncached + cache reads + cache writes | Against the current model's window, so 1M and 200K models both read right. On desktop the dot matrix steps up in columns as the window widens: 2×10, 2×20, 2×25 or 2×50, each dot 5%, 2.5%, 2% or 1% of the window. It fills the top row first. |
-| Cache hit | Last turn's `cache_read / (input + cache_read + cache_write)` | Summed over every request in the turn. Subagent turns are not counted. |
+| Cache hit | Last turn's `cache_read / (input + cache_read + cache_write)` | Summed over every request in the turn. Subagent turns are not counted. It appears once the first turn of the session completes. A turn that is interrupted or hits an API error has no usage figures, so the previous turn's rate stays. |
 
 ## Terminal compatibility
 

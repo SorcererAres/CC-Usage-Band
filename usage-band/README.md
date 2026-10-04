@@ -59,7 +59,8 @@ Run `/usage-band-preview` to see the band in every terminal style side by side, 
 ## Notes
 
 - The 5h / 7d figures come from your subscription's rate-limit headers, so they appear after the first response of a session and only on a subscription.
-- The cache hit rate is the last turn's cache reads over all its input (uncached + cache reads + cache writes), summed over the turn's requests.
+- The cache hit rate is the last turn's cache reads over all its input (uncached + cache reads + cache writes), summed over the turn's requests. It appears once the first turn completes; an interrupted or failed turn has no usage figures, so the previous rate stays.
+- Limit countdowns read `42m` under an hour, `3h14m` under a day and `5d3h` beyond.
 - On the desktop the text is drawn by Claude itself, so it uses the app's own font (Anthropic Sans) and text color in both light and dark mode; only the bars, dots and icons are SVG.
 
 ## What it can reach
