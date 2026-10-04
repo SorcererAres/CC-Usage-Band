@@ -187,9 +187,18 @@ export USAGE_BAND_ICONS=unicode   # auto（默认）· nerd · unicode · ascii
 
 - **读取**：会话的用量数据（`session.measure`、`turn.complete`、`$.session.usage`），环境变量 `TERM_PROGRAM` 和 `USAGE_BAND_ICONS`，以及你在 `/config` 里设置的阈值和颜色
 - **注册**：一个命令 `/usage-band-preview`
-- **绘制**：输入框上方的这一行
+- **绘制**：输入框上方的这一行；第一次安装后弹一条欢迎提示（`$.ui.toast`），只弹一次
+- **保存**：在 Claude Code 为插件保留的存储里（`$.store`）记一个「已经显示过欢迎提示」的标记，跨会话保留，这样提示只弹一次
 
-它不读写文件、不运行程序、不联网，也不会把任何数据发送到任何地方。整个模组只有一个文件：[`usage-band/hooks/register.tsx`](./usage-band/hooks/register.tsx)。
+`turn.complete` 事件里也带着 Claude 那一轮的回复正文，插件只从中取 token 用量来算缓存命中率，不读取、不保存回复内容。
+
+它不直接读写文件、不运行程序、不联网，也不会把任何数据发送到任何地方。上面那个标记由 Claude Code 代为保存。模组代码只有一个文件：[`usage-band/hooks/register.tsx`](./usage-band/hooks/register.tsx)。
+
+想自己核实，可以运行下面这条命令，它会列出模组挂接的全部事件、调用的全部接口和读写的环境变量，和这一节对得上：
+
+```bash
+claude plugin validate usage-band
+```
 
 ## 开发
 

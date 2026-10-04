@@ -183,11 +183,20 @@ When to set the icons yourself (how: see [Configuration](#configuration)):
 
 Mods run with the same access as Claude Code itself and are not sandboxed, so here is everything this one touches:
 
-- **Reads** the session's usage figures (`session.measure`, `turn.complete`, `$.session.usage`) the `TERM_PROGRAM` and `USAGE_BAND_ICONS` environment variables, and the thresholds and colors you set in `/config`
+- **Reads** the session's usage figures (`session.measure`, `turn.complete`, `$.session.usage`), the `TERM_PROGRAM` and `USAGE_BAND_ICONS` environment variables, and the thresholds and colors you set in `/config`
 - **Registers** one command, `/usage-band-preview`
-- **Draws** the band above the prompt
+- **Draws** the band above the prompt, and one welcome toast (`$.ui.toast`) the first time after install
+- **Keeps** one flag in the storage Claude Code sets aside for the plugin (`$.store`), noting that the welcome has been shown, so it shows only once across sessions
 
-It does not read or write files, run processes, call the network or send any data anywhere. The whole mod is one file: [`usage-band/hooks/register.tsx`](./usage-band/hooks/register.tsx).
+The `turn.complete` event also carries the text of Claude's reply; the mod takes only the token counts from it to work out the cache hit rate, and never reads or keeps the reply.
+
+It does not read or write files itself, run processes, call the network or send any data anywhere; Claude Code stores the flag above for it. The mod's code is one file: [`usage-band/hooks/register.tsx`](./usage-band/hooks/register.tsx).
+
+To check this yourself, run the command below. It lists every event the mod hooks, every interface it calls and the environment variables it reads and writes, which match this section:
+
+```bash
+claude plugin validate usage-band
+```
 
 ## Development
 
