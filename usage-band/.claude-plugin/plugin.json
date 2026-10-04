@@ -1,0 +1,75 @@
+{
+  "name": "usage-band",
+  "version": "1.0.7",
+  "description": "A band above the prompt showing your 5-hour and 7-day limits, context window and prompt-cache hit rate, styled for the terminal and the desktop app",
+  "author": {
+    "name": "Jetson Chan"
+  },
+  "repository": "https://github.com/SorcererAres/CC-Usage-Band",
+  "license": "MIT",
+  "keywords": [
+    "usage",
+    "rate-limit",
+    "context",
+    "cache",
+    "status",
+    "mod"
+  ],
+  "userConfig": {
+    "limitWarn": {
+      "type": "number",
+      "title": "Limit warning at (%)",
+      "description": "The 5h and 7d limits turn the warning color at this percent used",
+      "default": 80,
+      "min": 0,
+      "max": 100
+    },
+    "contextWarn": {
+      "type": "number",
+      "title": "Context warning at (%)",
+      "description": "The context window turns the warning color at this percent full",
+      "default": 80,
+      "min": 0,
+      "max": 100
+    },
+    "cacheWarn": {
+      "type": "number",
+      "title": "Cache hit warning below (%)",
+      "description": "The cache hit rate turns the warning color below this percent",
+      "default": 50,
+      "min": 0,
+      "max": 100
+    },
+    "colorFiveHour": {
+      "type": "string",
+      "title": "5h limit color",
+      "description": "Hex color such as #5cc4d6; an invalid value falls back to the default",
+      "default": "#5cc4d6"
+    },
+    "colorSevenDay": {
+      "type": "string",
+      "title": "7d limit color",
+      "description": "Hex color such as #e8a25f; an invalid value falls back to the default",
+      "default": "#e8a25f"
+    },
+    "colorContext": {
+      "type": "string",
+      "title": "Context color",
+      "description": "Hex color such as #9aa5f5; an invalid value falls back to the default",
+      "default": "#9aa5f5"
+    },
+    "colorCache": {
+      "type": "string",
+      "title": "Cache hit color",
+      "description": "Hex color such as #72cf9f; an invalid value falls back to the default",
+      "default": "#72cf9f"
+    },
+    "colorWarn": {
+      "type": "string",
+      "title": "Warning color",
+      "description": "Hex color such as #e5685f; an invalid value falls back to the default",
+      "default": "#e5685f"
+    }
+  },
+  "types": "./types/index.d.ts"
+}
