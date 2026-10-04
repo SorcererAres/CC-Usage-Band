@@ -56,9 +56,9 @@ English · [简体中文](./README.zh-CN.md)
 | **Context window** (layers icon) | Tokens in the context out of the model's window, e.g. `398K/1M` |
 | **Cache hit rate** (target icon) | How much of the last turn's input the prompt cache served |
 
-- **Glanceable, in Claude's colors.** The figures stay neutral; the bars, dots and icons carry Claude's brand colors (blue for the limits, Claude orange for the context, olive for the cache). A metric turns red only when it needs you: by default a limit or the context past 80%, or a cache hit rate under 50%. Both the thresholds and the colors are [configurable](#configuration).
-- **Alive, not noisy.** A slow shine sweeps across the limit bars, every bar in step.
-- **Native on both surfaces.** Terminal: a character line with Nerd Font or Unicode icons that fits itself to the window width. Desktop app: an SVG row that spreads across the full width and wraps when the window is narrow, with limit bars and a context dot matrix that both stretch with the window, and light and dark mode.
+- **Glanceable, in Claude's colors.** The figures stay neutral; the bars, dots and icons carry Claude's brand colors (blue for the limits, Claude orange for the context, olive for the cache). A metric turns red only when it needs you: by default a limit or the context at 80% or more, or a cache hit rate under 50%. Both the thresholds and the colors are [configurable](#configuration).
+- **Alive, not noisy.** A slow shine sweeps across the limit bars and, on the desktop, the context dots, all in step.
+- **Native on both surfaces.** Terminal: a character line with Nerd Font or Unicode icons that fits itself to the window width. Desktop app: a row of SVG graphics and text in the app's own font that spreads across the full width and wraps when the window is narrow, with limit bars and a context dot matrix that both stretch with the window, and light and dark mode.
 - **Light.** No files read, no processes, no network. It only listens to the usage figures Claude Code already has.
 
 ## Requirements

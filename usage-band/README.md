@@ -6,7 +6,7 @@ A Claude Code mod that puts a one-line band above the prompt with what you need 
 - **Context** — tokens in the context window out of its size
 - **Cache hit** — how much of the last turn's input the prompt cache served
 
-The figures stay neutral and the graphics carry Claude's brand colors (blue for the limits, Claude orange for the context, olive for the cache); a metric turns red when it needs attention: by default a limit or the context past 80%, or a cache hit rate under 50% (both configurable, see Settings). The limit bars carry a slow shine that sweeps left to right, in step across bars.
+The figures stay neutral and the graphics carry Claude's brand colors (blue for the limits, Claude orange for the context, olive for the cache); a metric turns red when it needs attention: by default a limit or the context at 80% or more, or a cache hit rate under 50% (both configurable, see Settings). The limit bars, and on the desktop the context dots, carry a slow shine that sweeps left to right, all in step.
 
 > **What's new in 2.0.0**
 >
@@ -28,7 +28,7 @@ The line fits itself to the terminal width: on a narrow terminal it drops the ba
 
 **Desktop app (Code tab)**
 
-A row of SVG groups that spreads across the full width of the band and wraps onto a second line when the window is narrow: limit bars that stretch with the window, with the figure and reset time beside them, the context window as a two-row dot matrix that steps up from 2×10 to 2×50 as the window widens (each dot 5%, 2.5%, 2% or 1% of the window), and the cache hit rate. When the context window is the only group (no rate limits and no cache hit rate yet), its name `Context` sits on the left and the dots on the right. Hairlines separate the groups. It follows the app's light and dark mode.
+A row of groups (SVG graphics with text in the app's own font) that spreads across the full width of the band and wraps onto a second line when the window is narrow: limit bars that stretch with the window, with the figure and reset time beside them, the context window as a two-row dot matrix that steps up from 2×10 to 2×50 as the window widens (each dot 5%, 2.5%, 2% or 1% of the window), and the cache hit rate. When the context window is the only group (no rate limits and no cache hit rate yet), its name `Context` sits on the left and the dots on the right. Hairlines separate the groups. It follows the app's light and dark mode.
 
 ## Install
 
