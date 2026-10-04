@@ -192,9 +192,11 @@ The `turn.complete` event also carries the text of Claude's reply; the mod takes
 
 It does not read or write files itself, run processes, call the network or send any data anywhere; Claude Code stores the flag above for it. The mod's code is one file: [`usage-band/hooks/register.tsx`](./usage-band/hooks/register.tsx).
 
-To check this yourself, run the command below. It lists every event the mod hooks, every interface it calls and the environment variables it reads and writes, which match this section:
+To check this yourself, clone the repository and run the validator from its root. It lists every event the mod hooks, every interface it calls and the environment variables it reads and writes, which match this section:
 
 ```bash
+git clone https://github.com/SorcererAres/CC-Usage-Band.git
+cd CC-Usage-Band
 claude plugin validate usage-band
 ```
 

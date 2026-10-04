@@ -194,9 +194,11 @@ export USAGE_BAND_ICONS=unicode   # auto（默认）· nerd · unicode · ascii
 
 它不直接读写文件、不运行程序、不联网，也不会把任何数据发送到任何地方。上面那个标记由 Claude Code 代为保存。模组代码只有一个文件：[`usage-band/hooks/register.tsx`](./usage-band/hooks/register.tsx)。
 
-想自己核实，可以运行下面这条命令，它会列出模组挂接的全部事件、调用的全部接口和读写的环境变量，和这一节对得上：
+想自己核实，可以把仓库克隆下来，在仓库根目录运行校验命令。它会列出模组挂接的全部事件、调用的全部接口和读写的环境变量，和这一节对得上：
 
 ```bash
+git clone https://github.com/SorcererAres/CC-Usage-Band.git
+cd CC-Usage-Band
 claude plugin validate usage-band
 ```
 

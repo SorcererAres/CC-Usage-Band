@@ -72,7 +72,7 @@ Mods run with the same access as Claude Code itself; they are not sandboxed. Thi
 - registers the `/usage-band-preview` command, draws the band and shows one welcome toast after install
 - keeps one flag in the plugin's own storage (`$.store`) so the welcome shows only once
 
-The `turn.complete` event also carries Claude's reply; the mod takes only its token counts and never reads or keeps the reply. It reads and writes no files itself, runs no processes and makes no network requests. Run `claude plugin validate .` to list every event and interface it uses.
+The `turn.complete` event also carries Claude's reply; the mod takes only its token counts and never reads or keeps the reply. It reads and writes no files itself, runs no processes and makes no network requests. To list every event and interface it uses, clone the repository and run `claude plugin validate usage-band` from its root.
 
 ## Development
 
