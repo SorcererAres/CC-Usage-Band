@@ -55,7 +55,7 @@
 ## 使用要求
 
 - Claude Code **2.1.287 或更新版本**（模组功能是从这个版本开始提供的），终端和桌面端的 Code 页都可以用。
-- 5h 和 7d 额度只有订阅账号才有数据。没有订阅时，这一行显示上下文和缓存命中率；桌面端还会在额度的位置显示本会话累计费用（如 `$1.23`）。
+- 5h 和 7d 额度只有订阅账号才有数据。没有订阅时，这一行在额度的位置显示本会话累计费用（如 `$1.23`），另外显示上下文和缓存命中率。
 - **推荐搭配 [Ghostty](https://ghostty.org) 终端使用。** Ghostty 自带这一行用到的图标字体，不用做任何设置就能看到完整效果。其他终端也能用，图标会简单一些。
 
 ## 安装
@@ -112,7 +112,7 @@ export USAGE_BAND_ICONS=unicode   # auto（默认）· nerd · unicode · ascii
 | `colorSevenDay` | `#e8a25f` | 7d 额度的颜色 |
 | `colorContext` | `#9aa5f5` | 上下文的颜色 |
 | `colorCache` | `#72cf9f` | 缓存命中率的颜色 |
-| `colorCost` | `#d4b04c` | 会话费用的颜色（仅非订阅账号的桌面端显示） |
+| `colorCost` | `#d4b04c` | 会话费用的颜色（仅非订阅账号显示） |
 | `colorWarn` | `#e5685f` | 警示色 |
 
 阈值的取值范围是 0–100。颜色写成 `#rrggbb` 或 `#rgb`，填错时会退回默认值。这些值保存在 `settings.json` 的 `pluginConfigs["usage-band"].options` 里，也可以直接编辑这个文件。

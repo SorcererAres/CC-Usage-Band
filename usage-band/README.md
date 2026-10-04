@@ -41,7 +41,7 @@ Run `/usage-band-preview` to see the band in every terminal style side by side, 
 
 ## Notes
 
-- The 5h / 7d figures come from your subscription's rate-limit headers, so they appear after the first response of a session and only on a subscription. Without one, the desktop band shows the session cost instead.
+- The 5h / 7d figures come from your subscription's rate-limit headers, so they appear after the first response of a session and only on a subscription. Without one, the band shows the session cost instead.
 - The cache hit rate is the last turn's cache reads over all its input (uncached + cache reads + cache writes), summed over the turn's requests.
 - The desktop text uses Inter when it is installed and falls back to SF Pro / the system UI font.
 

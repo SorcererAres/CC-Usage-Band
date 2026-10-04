@@ -62,10 +62,11 @@ export const themeFrom = (o: PluginOptions = {}): Theme => {
 const FRAME_MS = 200
 const PREVIEW = 'usage-band-preview'
 
-export const GLYPHS: Record<Style, { ctx: string; hit: string; fill: string; track: string }> = {
-  nerd: { ctx: '\u{F0328} ', hit: '\u{F04FE} ', fill: '■', track: '■' },
-  unicode: { ctx: '≡ ', hit: '● ', fill: '■', track: '■' },
-  ascii: { ctx: 'ctx ', hit: 'hit ', fill: '#', track: '-' },
+// cost：会话费用的前缀。Unicode 下不加图标，金额本身的 $ 已经说明了是什么
+export const GLYPHS: Record<Style, { ctx: string; hit: string; cost: string; fill: string; track: string }> = {
+  nerd: { ctx: '\u{F0328} ', hit: '\u{F04FE} ', cost: '\u{F01C1} ', fill: '■', track: '■' },
+  unicode: { ctx: '≡ ', hit: '● ', cost: '', fill: '■', track: '■' },
+  ascii: { ctx: 'ctx ', hit: 'hit ', cost: 'cost ', fill: '#', track: '-' },
 }
 
 // Terminals known to ship Nerd Font symbols without the user installing a font
@@ -201,8 +202,16 @@ export const layout = (
     if (detail >= 1 && left) out.push({ text: ` · ${left}`, dim: true })
     groups.push(out)
   }
-  limit('5h', m?.rateLimits.find(l => l.kind === 'five_hour'), theme.hue.five)
-  limit('7d', m?.rateLimits.find(l => l.kind === 'seven_day'), theme.hue.seven)
+  const five = m?.rateLimits.find(l => l.kind === 'five_hour')
+  const seven = m?.rateLimits.find(l => l.kind === 'seven_day')
+  limit('5h', five, theme.hue.five)
+  limit('7d', seven, theme.hue.seven)
+
+  // 没有额度数据的账号（按量计费）显示本会话费用，占据额度的位置；规则与桌面端一致
+  if (!five && !seven && m?.cost !== undefined && Number.isFinite(m.cost)) {
+    const color = theme.hue.cost
+    groups.push([...(g.cost ? [{ text: g.cost, color }] : []), { text: fmtCost(m.cost), color }])
+  }
 
   if (m) {
     const pct = ctxPercent(m.context)

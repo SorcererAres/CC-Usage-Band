@@ -535,3 +535,31 @@ test('accounts without rate limits see the session cost on the desktop', async (
   expect((await ui.find({ type: 'Box' }))?.props.justifyContent).toBe('space-between')
   await ui.unmount()
 })
+
+test('the terminal shows the session cost too, in the limits\' place', async ($, on) => {
+  const m: Measure = { context: { tokens: 100_000, window: 1_000_000, percent: 10 }, rateLimits: [], cost: 1.5 }
+  const texts = (mm: Measure, style: 'nerd' | 'unicode' | 'ascii' = 'unicode') =>
+    layout(mm, null, 0, 2, 0, { style, colors: 'true' }).map(s => s.text)
+  // 费用排在最前；Unicode 下没有图标，Nerd Font 和 ASCII 有前缀
+  expect(texts(m).slice(0, 1)).toEqual(['$1.50'])
+  expect(texts(m, 'nerd')[0]).toBe('\u{F01C1} ')
+  expect(texts(m, 'ascii').slice(0, 2)).toEqual(['cost ', '$1.50'])
+  // 订阅账号、没有费用数据时都不显示
+  expect(texts({ ...m, rateLimits: [{ kind: 'five_hour', percentUsed: 10 }] })).not.toContain('$1.50')
+  expect(texts({ ...m, cost: undefined }).some(t => t.startsWith('$'))).toBe(false)
+  // 颜色可配置
+  const theme = themeFrom({ colorCost: '#123456' })
+  expect(layout(m, null, 0, 0, 0, undefined, theme).find(s => s.text === '$1.50')?.color).toBe('#123456')
+
+  // 端到端：session.measure 带来的费用在终端画出来
+  on('session.measure', ($, e) => ({ changed: e.changed }))
+  await $.session.measure({
+    context: { tokens: 100_000, window: 1_000_000, percent: 10 },
+    rateLimits: [],
+    cost: { usd: 2.5 },
+    changed: ['context', 'cost'],
+  })
+  const ui = await $.ui.mount({ plugin: 'usage-band', surface: 'terminal', ...BAND })
+  expect(await ui.find({ type: 'Text', text: '$2.50' })).toBeDefined()
+  await ui.unmount()
+})

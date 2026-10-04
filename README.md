@@ -53,7 +53,7 @@ English · [简体中文](./README.zh-CN.md)
 ## Requirements
 
 - Claude Code **2.1.287 or newer** (the release that introduced mods), in the terminal or the desktop app's Code tab
-- A Claude subscription for the 5h and 7d figures. Without one, the band shows the context window and cache hit rate; on the desktop it also shows what the session has cost so far (e.g. `$1.23`) where the limits would be.
+- A Claude subscription for the 5h and 7d figures. Without one, the band shows what the session has cost so far (e.g. `$1.23`) where the limits would be, plus the context window and cache hit rate.
 - **Recommended terminal: [Ghostty](https://ghostty.org).** It ships the icon font the band uses, so you get the full look with no setup. Other terminals work too, with simpler icons.
 
 ## Installation
@@ -110,7 +110,7 @@ export USAGE_BAND_ICONS=unicode   # auto (default) · nerd · unicode · ascii
 | `colorSevenDay` | `#e8a25f` | Color of the 7d limit |
 | `colorContext` | `#9aa5f5` | Color of the context window |
 | `colorCache` | `#72cf9f` | Color of the cache hit rate |
-| `colorCost` | `#d4b04c` | Color of the session cost (desktop, accounts without rate limits) |
+| `colorCost` | `#d4b04c` | Color of the session cost (accounts without rate limits) |
 | `colorWarn` | `#e5685f` | The warning color |
 
 Thresholds run from 0 to 100. Colors are `#rrggbb` or `#rgb`; an invalid one falls back to its default. The values live in `settings.json` under `pluginConfigs["usage-band"].options`, which you can also edit by hand.
