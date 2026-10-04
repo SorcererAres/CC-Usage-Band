@@ -10,7 +10,6 @@ import {
   PX_PER_COL,
   BAR,
   DOT_STEPS,
-  fmtCost,
   DEFAULT_STRETCH,
   desktopSvg,
   shineBegin,
@@ -482,14 +481,15 @@ test('the desktop band sizes its bars from the columns it is given', async ($, o
   expect(await widthAt(60)).toBeGreaterThan(await widthAt(40))
 })
 
-test('a lone context group gets a whole-percent dot matrix and sits centered', async ($, on) => {
+test('a lone context group is named on the left, its dots on the right', async ($, on) => {
   mock.clock(on)
   on('session.measure', ($, e) => ({ changed: e.changed }))
-  // 截图里的情形：只有上下文一组，宽 95 列
+  // 截图里的情形：没有额度、还没有缓存命中率，只剩上下文一组，宽 95 列
   await $.session.measure({
     context: { tokens: 632_000, window: 1_000_000, percent: 63 },
     rateLimits: [],
-    changed: ['context'],
+    cost: { usd: 463 },
+    changed: ['context', 'cost'],
   })
   const ui = await $.ui.mount({
     plugin: 'usage-band',
@@ -497,69 +497,28 @@ test('a lone context group gets a whole-percent dot matrix and sits centered', a
     component: 'AbovePrompt',
     props: { ...BAND.props, bodyColumns: 95 } as never,
   })
-  expect((await ui.find({ type: 'Box' }))?.props.justifyContent).toBe('center')
-  const svg = String((await ui.find({ type: 'Svg' }))?.props.source)
-  // 2×50，每点 1%：63% 点亮 63 个
-  expect((svg.match(/<circle [^>]*r="1.6"/g) ?? []).length).toBe(50 * 2 + 63)
-  await ui.unmount()
-})
-
-test('accounts without rate limits see the session cost on the desktop', async ($, on) => {
-  expect(fmtCost(0)).toBe('$0.00')
-  expect(fmtCost(1.234)).toBe('$1.23')
-  expect(fmtCost(123.4)).toBe('$123')
-  const base: Measure = { context: { tokens: 100_000, window: 1_000_000, percent: 10 }, rateLimits: [], cost: 1.5 }
-  const keys = (mm: Measure) => desktopParts(mm, null, 0).map(p => p.key)
-  // 按量计费：费用排在最前，占据额度的位置
-  expect(keys(base)).toEqual(['cost', 'ctx'])
-  expect(desktopParts(base, null, 0)[0]?.alt).toBe('session cost $1.50')
-  // 订阅账号（有额度数据）不显示费用；宿主没给费用时也不显示
-  expect(keys({ ...base, rateLimits: [{ kind: 'five_hour', percentUsed: 10 }] })).toEqual(['5h', 'ctx'])
-  expect(keys({ ...base, cost: undefined })).toEqual(['ctx'])
-  // 费用的颜色可以配置
-  const svg = desktopPieces(base, null, 0, themeFrom({ colorCost: '#123456' }))[0]?.svg ?? ''
-  expect(svg).toContain(`stroke="${lighten('#123456', -0.15)}"`)
-
-  // 端到端：session.measure 带来的费用会画出来，有两组时用 space-between
-  mock.clock(on)
-  on('session.measure', ($, e) => ({ changed: e.changed }))
-  await $.session.measure({
-    context: { tokens: 100_000, window: 1_000_000, percent: 10 },
-    rateLimits: [],
-    cost: { usd: 2.5 },
-    changed: ['context', 'cost'],
-  })
-  const ui = await $.ui.mount({ plugin: 'usage-band', surface: 'desktop', ...BAND })
-  const alts = (await ui.findAll({ type: 'Svg' })).map(s => s.props.alt).filter(Boolean)
-  expect(alts).toEqual(['session cost $2.50', 'context 100K of 1M'])
+  const svgs = await ui.findAll({ type: 'Svg' })
+  // 名称在左、点阵在右，两者之间没有分隔线；不再显示费用
+  expect(svgs.map(s => s.props.alt)).toEqual(['Context', 'context 632K of 1M'])
+  expect(svgs.some(s => String(s.props.source).includes('$'))).toBe(false)
   expect((await ui.find({ type: 'Box' }))?.props.justifyContent).toBe('space-between')
+  // 名称的颜色跟着上下文走
+  expect(String(svgs[0]?.props.source)).toContain(`--l:${lighten('#9aa5f5', -0.38)}`)
+  // 点阵 2×50，每点 1%：63% 点亮 63 个
+  expect((String(svgs[1]?.props.source).match(/<circle [^>]*r="1.6"/g) ?? []).length).toBe(50 * 2 + 63)
   await ui.unmount()
 })
 
-test('the terminal shows the session cost too, in the limits\' place', async ($, on) => {
-  const m: Measure = { context: { tokens: 100_000, window: 1_000_000, percent: 10 }, rateLimits: [], cost: 1.5 }
-  const texts = (mm: Measure, style: 'nerd' | 'unicode' | 'ascii' = 'unicode') =>
-    layout(mm, null, 0, 2, 0, { style, colors: 'true' }).map(s => s.text)
-  // 费用排在最前；Unicode 下没有图标，Nerd Font 和 ASCII 有前缀
-  expect(texts(m).slice(0, 1)).toEqual(['$1.50'])
-  expect(texts(m, 'nerd')[0]).toBe('\u{F01C1} ')
-  expect(texts(m, 'ascii').slice(0, 2)).toEqual(['cost ', '$1.50'])
-  // 订阅账号、没有费用数据时都不显示
-  expect(texts({ ...m, rateLimits: [{ kind: 'five_hour', percentUsed: 10 }] })).not.toContain('$1.50')
-  expect(texts({ ...m, cost: undefined }).some(t => t.startsWith('$'))).toBe(false)
-  // 颜色可配置
-  const theme = themeFrom({ colorCost: '#123456' })
-  expect(layout(m, null, 0, 0, 0, undefined, theme).find(s => s.text === '$1.50')?.color).toBe('#123456')
-
-  // 端到端：session.measure 带来的费用在终端画出来
-  on('session.measure', ($, e) => ({ changed: e.changed }))
-  await $.session.measure({
-    context: { tokens: 100_000, window: 1_000_000, percent: 10 },
-    rateLimits: [],
-    cost: { usd: 2.5 },
-    changed: ['context', 'cost'],
-  })
-  const ui = await $.ui.mount({ plugin: 'usage-band', surface: 'terminal', ...BAND })
-  expect(await ui.find({ type: 'Text', text: '$2.50' })).toBeDefined()
-  await ui.unmount()
+test('the context name shows only while context is the only group', async () => {
+  const ctx: Measure = { context: { tokens: 850_000, window: 1_000_000, percent: 85 }, rateLimits: [] }
+  const keys = (mm: Measure, t: Parameters<typeof desktopParts>[1] = null) => desktopParts(mm, t, 0).map(p => p.key)
+  expect(keys(ctx)).toEqual(['label', 'ctx'])
+  // 有了缓存命中率或额度，名称就去掉
+  expect(keys(ctx, { input: 10, output: 0, cacheRead: 90, cacheWrite: 0 })).toEqual(['ctx', 'hit'])
+  expect(keys({ ...ctx, rateLimits: [{ kind: 'five_hour', percentUsed: 10 }] })).toEqual(['5h', 'ctx'])
+  // 上下文超过阈值时名称一起变成警示色
+  const label = desktopPieces(ctx, null, 0)[0]?.svg ?? ''
+  expect(label).toContain(`--l:${lighten('#e5685f', -0.38)}`)
+  // 整张拼图里名称和点阵之间也没有分隔线
+  expect(desktopSvg(ctx, null, 0).svg).not.toContain('class="sep"')
 })
