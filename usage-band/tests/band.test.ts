@@ -141,7 +141,7 @@ test('ambiguous-width glyphs are budgeted two columns, so a CJK terminal never w
 })
 
 test('a limit, the context or the cache turns red past its threshold', async () => {
-  const RED = '#e5685f'
+  const RED = DEFAULT_THEME.warn
   const colorOf = (m: Measure | null, t: Parameters<typeof layout>[1], text: string) =>
     layout(m, t, 0, 0).find(s => s.text === text)?.color
   const lim = (pct: number): Measure => ({
@@ -164,7 +164,7 @@ test('context without a percent falls back to tokens over the window', async () 
   expect(ctxPercent({ tokens: 10, window: 0 })).toBe(0)
   expect(ctxPercent({ tokens: 850_000, window: 1_000_000, percent: 12 })).toBe(12)
   const m: Measure = { context: { tokens: 850_000, window: 1_000_000 }, rateLimits: [] }
-  expect(layout(m, null, 0, 0).find(s => s.text === '850K')?.color).toBe('#e5685f')
+  expect(layout(m, null, 0, 0).find(s => s.text === '850K')?.color).toBe(DEFAULT_THEME.warn)
 })
 
 test('a window past its reset shows 0% with no countdown until the next reading', async () => {
@@ -352,17 +352,18 @@ test('custom thresholds and colors decide when and how a metric warns', async ()
   const t = { input: 60, output: 0, cacheRead: 940, cacheWrite: 0 }
   const colorOf = (text: string) => layout(m, t, 0, 0, 0, undefined, theme).find(s => s.text === text)?.color
   expect(colorOf('60%')).toBe('#ff0000')
-  expect(colorOf('59%')).toBe('#00ff00')
+  // 没超过阈值的数字不着色（用终端前景色），只有图形带颜色
+  expect(colorOf('59%')).toBeUndefined()
   expect(colorOf('300K')).toBe('#ff0000')
   expect(colorOf('94%')).toBe('#ff0000')
   // 默认阈值下同样的读数都不报警
   const plain = (text: string) => layout(m, t, 0, 0).find(s => s.text === text)?.color
-  expect(plain('60%')).toBe(DEFAULT_THEME.hue.five)
-  expect(plain('94%')).toBe(DEFAULT_THEME.hue.cache)
+  expect(plain('60%')).toBeUndefined()
+  expect(plain('94%')).toBeUndefined()
   // 桌面端同样使用配置：进度条底色带着各自的颜色
   const svg = desktopSvg(m, t, 0, theme).svg
-  expect(svg).toContain('--h:#ff0000')
-  expect(svg).toContain('--h:#00ff00')
+  expect(svg).toContain(`--gl:${lighten('#ff0000', -0.12)}`)
+  expect(svg).toContain(`--gl:${lighten('#00ff00', -0.12)}`)
 })
 
 test(
@@ -378,10 +379,12 @@ test(
     })
     const ui = await $.ui.mount({ plugin: 'usage-band', surface: 'terminal', ...BAND })
     expect((await ui.find({ type: 'Text', text: '55%' }))?.props.color).toBe('#ff0000')
-    expect((await ui.find({ type: 'Text', text: '100K' }))?.props.color).toBe('#0000ff')
+    // 上下文的图标带配置的颜色，数字不着色
+    expect((await ui.find({ type: 'Text', text: '≡ ' }))?.props.color).toBe('#0000ff')
+    expect((await ui.find({ type: 'Text', text: '100K' }))?.props.color).toBeUndefined()
     await ui.unmount()
     const desk = await $.ui.mount({ plugin: 'usage-band', surface: 'desktop', ...BAND })
-    expect(String((await desk.find({ type: 'Svg' }))?.props.source)).toContain('--h:#ff0000')
+    expect(String((await desk.find({ type: 'Svg' }))?.props.source)).toContain(`--gl:${lighten('#ff0000', -0.12)}`)
     await desk.unmount()
   },
 )
@@ -502,8 +505,8 @@ test('a lone context group is named on the left, its dots on the right', async (
   expect(svgs.map(s => s.props.alt)).toEqual(['Context', 'context 632K of 1M'])
   expect(svgs.some(s => String(s.props.source).includes('$'))).toBe(false)
   expect((await ui.find({ type: 'Box' }))?.props.justifyContent).toBe('space-between')
-  // 名称的颜色跟着上下文走
-  expect(String(svgs[0]?.props.source)).toContain(`--l:${lighten('#9aa5f5', -0.38)}`)
+  // 名称平时是中性文字
+  expect(String(svgs[0]?.props.source)).toContain('class="num">Context<')
   // 点阵 2×50，每点 1%：63% 点亮 63 个
   expect((String(svgs[1]?.props.source).match(/<circle [^>]*r="1.6"/g) ?? []).length).toBe(50 * 2 + 63)
   await ui.unmount()
@@ -518,7 +521,7 @@ test('the context name shows only while context is the only group', async () => 
   expect(keys({ ...ctx, rateLimits: [{ kind: 'five_hour', percentUsed: 10 }] })).toEqual(['5h', 'ctx'])
   // 上下文超过阈值时名称一起变成警示色
   const label = desktopPieces(ctx, null, 0)[0]?.svg ?? ''
-  expect(label).toContain(`--l:${lighten('#e5685f', -0.38)}`)
+  expect(label).toContain(`--l:${DEFAULT_THEME.warn}`)
   // 整张拼图里名称和点阵之间也没有分隔线
   expect(desktopSvg(ctx, null, 0).svg).not.toContain('class="sep"')
 })
@@ -542,4 +545,28 @@ test('desktop pieces are 20px tall and everything sits inside them', async () =>
       expect(Number(cy)).toBeLessThan(20)
     }
   }
+})
+
+test('the default palette is Claude\'s: neutral figures, brand-colored graphics', async () => {
+  expect(DEFAULT_THEME.hue).toEqual({ five: '#6a9bcc', seven: '#4f7aa6', ctx: '#d97757', cache: '#788c5d' })
+  expect(DEFAULT_THEME.warn).toBe('#b8433b')
+  const m: Measure = {
+    context: { tokens: 300_000, window: 1_000_000, percent: 30 },
+    rateLimits: [{ kind: 'five_hour', percentUsed: 40 }],
+  }
+  const t = { input: 10, output: 0, cacheRead: 90, cacheWrite: 0 }
+  const svg = desktopPieces(m, t, 0).map(p => p.svg).join('')
+  // 平时所有数字和标签都是中性文字，没有任何警示色
+  expect(svg).not.toContain('class="ink"')
+  expect(svg).toContain('class="num">5h<')
+  // 图形用品牌色，浅色模式略压暗、深色模式略调亮
+  for (const hue of ['#6a9bcc', '#d97757', '#788c5d']) {
+    expect(svg).toContain(`--gl:${lighten(hue, -0.12)};--gd:${lighten(hue, 0.12)}`)
+  }
+  // 底轨统一暖灰，不再随各自颜色变化
+  expect(svg).toContain('.track{fill:#b0aea5')
+  expect(svg).not.toContain('--h:')
+  // 深色模式下警示色调亮
+  const hot = desktopPieces({ ...m, rateLimits: [{ kind: 'five_hour', percentUsed: 90 }] }, t, 0)[0]?.svg ?? ''
+  expect(hot).toContain(`--l:#b8433b;--d:${lighten('#b8433b', 0.35)}`)
 })

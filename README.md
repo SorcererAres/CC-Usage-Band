@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](./LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-2.1.287%2B-d97757?style=flat-square)](https://claude.com/claude-code)
 [![Type: mod](https://img.shields.io/badge/type-mod-6f7be0?style=flat-square)](https://claude.com/blog/claude-code-mods)
-![Surfaces](https://img.shields.io/badge/surfaces-terminal%20%7C%20desktop-5cc4d6?style=flat-square)
+![Surfaces](https://img.shields.io/badge/surfaces-terminal%20%7C%20desktop-6a9bcc?style=flat-square)
 
 English · [简体中文](./README.zh-CN.md)
 
@@ -45,7 +45,7 @@ English · [简体中文](./README.zh-CN.md)
 | **Context window** (layers icon) | Tokens in the context out of the model's window, e.g. `398K/1M` |
 | **Cache hit rate** (target icon) | How much of the last turn's input the prompt cache served |
 
-- **Glanceable.** Each metric has its own color. It turns red only when it needs you: by default a limit or the context past 80%, or a cache hit rate under 50%. Both the thresholds and the colors are [configurable](#configuration).
+- **Glanceable, in Claude's colors.** The figures stay neutral; the bars, dots and icons carry Claude's brand colors (blue for the limits, Claude orange for the context, olive for the cache). A metric turns red only when it needs you: by default a limit or the context past 80%, or a cache hit rate under 50%. Both the thresholds and the colors are [configurable](#configuration).
 - **Alive, not noisy.** A slow shine sweeps across the limit bars, every bar in step.
 - **Native on both surfaces.** Terminal: a character line with Nerd Font or Unicode icons that fits itself to the window width. Desktop app: an SVG row that spreads across the full width and wraps when the window is narrow, with limit bars and a context dot matrix that both stretch with the window, and light and dark mode.
 - **Light.** No files read, no processes, no network. It only listens to the usage figures Claude Code already has.
@@ -106,11 +106,11 @@ export USAGE_BAND_ICONS=unicode   # auto (default) · nerd · unicode · ascii
 | `limitWarn` | `80` | The 5h and 7d limits turn the warning color at this percent used |
 | `contextWarn` | `80` | The context window turns the warning color at this percent full |
 | `cacheWarn` | `50` | The cache hit rate turns the warning color below this percent |
-| `colorFiveHour` | `#5cc4d6` | Color of the 5h limit |
-| `colorSevenDay` | `#e8a25f` | Color of the 7d limit |
-| `colorContext` | `#9aa5f5` | Color of the context window |
-| `colorCache` | `#72cf9f` | Color of the cache hit rate |
-| `colorWarn` | `#e5685f` | The warning color |
+| `colorFiveHour` | `#6a9bcc` | Color of the 5h limit |
+| `colorSevenDay` | `#4f7aa6` | Color of the 7d limit |
+| `colorContext` | `#d97757` | Color of the context window |
+| `colorCache` | `#788c5d` | Color of the cache hit rate |
+| `colorWarn` | `#b8433b` | The warning color |
 
 Thresholds run from 0 to 100. Colors are `#rrggbb` or `#rgb`; an invalid one falls back to its default. The values live in `settings.json` under `pluginConfigs["usage-band"].options`, which you can also edit by hand.
 

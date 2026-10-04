@@ -1,6 +1,6 @@
 {
   "name": "usage-band",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "A band above the prompt showing your 5-hour and 7-day limits, context window and prompt-cache hit rate, styled for the terminal and the desktop app",
   "author": {
     "name": "Jetson Chan"
@@ -43,32 +43,32 @@
     "colorFiveHour": {
       "type": "string",
       "title": "5h limit color",
-      "description": "Hex color such as #5cc4d6; an invalid value falls back to the default",
-      "default": "#5cc4d6"
+      "description": "Hex color such as #6a9bcc; an invalid value falls back to the default",
+      "default": "#6a9bcc"
     },
     "colorSevenDay": {
       "type": "string",
       "title": "7d limit color",
-      "description": "Hex color such as #e8a25f; an invalid value falls back to the default",
-      "default": "#e8a25f"
+      "description": "Hex color such as #4f7aa6; an invalid value falls back to the default",
+      "default": "#4f7aa6"
     },
     "colorContext": {
       "type": "string",
       "title": "Context color",
-      "description": "Hex color such as #9aa5f5; an invalid value falls back to the default",
-      "default": "#9aa5f5"
+      "description": "Hex color such as #d97757; an invalid value falls back to the default",
+      "default": "#d97757"
     },
     "colorCache": {
       "type": "string",
       "title": "Cache hit color",
-      "description": "Hex color such as #72cf9f; an invalid value falls back to the default",
-      "default": "#72cf9f"
+      "description": "Hex color such as #788c5d; an invalid value falls back to the default",
+      "default": "#788c5d"
     },
     "colorWarn": {
       "type": "string",
       "title": "Warning color",
-      "description": "Hex color such as #e5685f; an invalid value falls back to the default",
-      "default": "#e5685f"
+      "description": "Hex color such as #b8433b; an invalid value falls back to the default",
+      "default": "#b8433b"
     }
   },
   "types": "./types/index.d.ts"

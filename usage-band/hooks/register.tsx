@@ -9,7 +9,9 @@ const now = atom({ plugin: 'usage-band', key: 'now' } as const, 0)
 const phase = atom({ plugin: 'usage-band', key: 'phase' } as const, 0)
 const style = atom({ plugin: 'usage-band', key: 'style' } as const, 'unicode')
 
-// One hue per metric; the warning color takes over only when a metric is in trouble
+// One hue per metric; the warning color takes over only when a metric is in trouble.
+// 默认配色取自 Claude 的品牌色：额度用蓝（7d 稍深）、上下文用 Claude 橙、缓存用橄榄绿，
+// 警示用更深的红，与橙色拉开距离。数字与标签保持中性，只有图形带颜色
 // 颜色与阈值：默认值如下，可在 /config 里按插件的 userConfig 字段逐项改
 export type Theme = {
   hue: { five: string; seven: string; ctx: string; cache: string }
@@ -20,13 +22,14 @@ export type Theme = {
   cacheWarn: number
 }
 export const DEFAULT_THEME: Theme = {
-  hue: { five: '#5cc4d6', seven: '#e8a25f', ctx: '#9aa5f5', cache: '#72cf9f' },
-  warn: '#e5685f',
+  hue: { five: '#6a9bcc', seven: '#4f7aa6', ctx: '#d97757', cache: '#788c5d' },
+  warn: '#b8433b',
   limitWarn: 80,
   contextWarn: 80,
   cacheWarn: 50,
 }
-const TRACK = '#4a4f5c'
+// 终端进度条的底轨：暖灰
+const TRACK = '#57534c'
 
 // 把 #rgb / #rrggbb 规整成小写 #rrggbb；不合法时用默认值，免得一个手误让整行颜色算错
 export const parseColor = (v: unknown, fallback: string): string => {
@@ -190,10 +193,11 @@ export const layout = (
   const limit = (label: string, l: Limit | undefined, hue: string) => {
     if (!l) return
     const { pct, left } = limitNow(l, at)
-    const color = pct >= theme.limitWarn ? theme.warn : hue
-    const out: Span[] = [{ text: `${label} `, color }]
-    if (detail === 2) out.push(...bar(pct, 8, color, frame, look.style), { text: ' ' })
-    out.push({ text: `${pct}%`, color })
+    // 标签与数字用终端前景色，超过阈值才变成警示色；进度条带各自的颜色
+    const warn = pct >= theme.limitWarn ? theme.warn : undefined
+    const out: Span[] = [{ text: `${label} `, color: warn }]
+    if (detail === 2) out.push(...bar(pct, 8, warn ?? hue, frame, look.style), { text: ' ' })
+    out.push({ text: `${pct}%`, color: warn })
     if (detail >= 1 && left) out.push({ text: ` · ${left}`, dim: true })
     groups.push(out)
   }
@@ -202,20 +206,20 @@ export const layout = (
 
   if (m) {
     const pct = ctxPercent(m.context)
-    const color = pct >= theme.contextWarn ? theme.warn : theme.hue.ctx
+    const warn = pct >= theme.contextWarn ? theme.warn : undefined
     groups.push([
-      { text: g.ctx, color },
-      { text: fmtTokens(m.context.tokens ?? 0), color },
+      { text: g.ctx, color: warn ?? theme.hue.ctx },
+      { text: fmtTokens(m.context.tokens ?? 0), color: warn },
       { text: `/${fmtTokens(m.context.window)}`, dim: true },
     ])
   }
 
   const hit = t ? hitRate(t) : null
   if (hit !== null) {
-    const color = hit < theme.cacheWarn ? theme.warn : theme.hue.cache
+    const warn = hit < theme.cacheWarn ? theme.warn : undefined
     groups.push([
-      { text: g.hit, color },
-      { text: `${hit}%`, color },
+      { text: g.hit, color: warn ?? theme.hue.cache },
+      { text: `${hit}%`, color: warn },
     ])
   }
 
@@ -270,10 +274,15 @@ const textW = (v: string, size: number) =>
   [...v].reduce((w, c) => w + (c >= '0' && c <= '9' ? 0.62 : (ADVANCE[c] ?? 0.6)), 0) * size +
   TRACKING * Math.max(0, [...v].length - 1)
 
-// Text tinted toward the hue: deeper on light backgrounds, lighter on dark ones
 const pinW = (v: string, size: number) => `textLength="${textW(v, size).toFixed(1)}" lengthAdjust="spacing"`
-const ink = (hue: string, x: number, y: number, v: string, size: number) =>
-  `<text x="${x}" y="${y}" font-size="${size}" ${pinW(v, size)} class="ink" style="--l:${lighten(hue, -0.38)};--d:${lighten(hue, 0.25)}">${esc(v)}</text>`
+// 数字与标签：平时是中性的暖深灰（深色模式下暖浅灰）；超过阈值时用警示色，深色模式下调亮
+const ink = (warn: string | undefined, x: number, y: number, v: string, size: number) =>
+  warn
+    ? `<text x="${x}" y="${y}" font-size="${size}" ${pinW(v, size)} class="ink" style="--l:${warn};--d:${lighten(warn, 0.35)}">${esc(v)}</text>`
+    : `<text x="${x}" y="${y}" font-size="${size}" ${pinW(v, size)} class="num">${esc(v)}</text>`
+// 图形（进度条、点阵、图标）的颜色：浅色模式略压暗、深色模式略调亮，两种底色上都看得清。
+// 元素用 class="gf"（填充）或 "gs"（描边）取 --g
+const paint = (color: string) => `style="--gl:${lighten(color, -0.12)};--gd:${lighten(color, 0.12)}"`
 const mute = (x: number, y: number, v: string, size: number) =>
   `<text x="${x}" y="${y}" font-size="${size}" ${pinW(v, size)} class="mute">${esc(v)}</text>`
 
@@ -297,7 +306,8 @@ const limitGroup = (
   barW: number = D.barW,
 ): Group => {
   const { pct, left } = limitNow(l, at)
-  const color = pct >= theme.limitWarn ? theme.warn : hue
+  const warn = pct >= theme.limitWarn ? theme.warn : undefined
+  const color = warn ?? hue
   const pctText = `${pct}%`
   const labelW = textW(label, D.base) + D.inner
   const pctW = textW(pctText, D.base)
@@ -312,14 +322,14 @@ const limitGroup = (
       const px = bx + barW + D.inner
       const motion = [
         `<defs><clipPath id="c-${id}"><rect x="${bx}" y="${y}" width="${fillW}" height="${D.barH}" rx="${r}"/></clipPath></defs>`,
-        `<rect x="${bx}" y="${y}" width="${barW}" height="${D.barH}" rx="${r}" class="track" style="--h:${color}"/>`,
-        `<rect x="${bx}" y="${y}" width="${fillW}" height="${D.barH}" rx="${r}" fill="${lighten(color, -0.12)}"/>`,
+        `<rect x="${bx}" y="${y}" width="${barW}" height="${D.barH}" rx="${r}" class="track"/>`,
+        `<rect x="${bx}" y="${y}" width="${fillW}" height="${D.barH}" rx="${r}" class="g gf" ${paint(color)}/>`,
         // The shine crosses the whole bar on one shared clock and shows only over the fill,
         // so both bars' shines sit at the same spot at every moment
         `<g clip-path="url(#c-${id})"><rect y="${y}" width="18" height="${D.barH}" fill="url(#shine)">` +
           `<animate attributeName="x" values="${bx - 18};${bx + barW};${bx + barW}" keyTimes="0;0.62;1" dur="2.6s" begin="${BEGIN}" repeatCount="indefinite"/></rect></g>`,
       ]
-      const stat = [ink(color, x, BASE, label, D.base), ink(color, px, BASE, pctText, D.base)]
+      const stat = [ink(warn, x, BASE, label, D.base), ink(warn, px, BASE, pctText, D.base)]
       if (left) {
         const rx = px + pctW + D.inner
         stat.push(`<rect x="${rx}" y="${CAP.top}" width="1" height="${CAP.h}" class="rule"/>`, mute(rx + 1 + D.inner, BASE, left, D.sm))
@@ -330,28 +340,28 @@ const limitGroup = (
 }
 
 // Three stacked sheets: the context window
-const layersIcon = (color: string) =>
-  `<g fill="none" stroke="${color}" stroke-width="1.2" stroke-linejoin="round">` +
-  `<path d="M5 0.6 L9.4 2.8 L5 5 L0.6 2.8 Z" fill="${color}" fill-opacity="0.25"/>` +
+const layersIcon = () =>
+  `<g fill="none" class="gs" stroke-width="1.2" stroke-linejoin="round">` +
+  `<path d="M5 0.6 L9.4 2.8 L5 5 L0.6 2.8 Z" class="gf" fill-opacity="0.25"/>` +
   `<path d="M0.6 5.2 L5 7.4 L9.4 5.2"/><path d="M0.6 7.2 L5 9.4 L9.4 7.2"/></g>`
 
 // A target: how much of the prompt the cache hit
-const targetIcon = (color: string) =>
-  `<g fill="none" stroke="${color}" stroke-width="1.2">` +
-  `<circle cx="5" cy="5" r="4.4"/><circle cx="5" cy="5" r="2.1"/><circle cx="5" cy="5" r="0.7" fill="${color}"/></g>`
+const targetIcon = () =>
+  `<g fill="none" class="gs" stroke-width="1.2">` +
+  `<circle cx="5" cy="5" r="4.4"/><circle cx="5" cy="5" r="2.1"/><circle cx="5" cy="5" r="0.7" class="gf"/></g>`
 
-// 只剩上下文一组时，左侧显示它的名称：和右侧的点阵同属一个模块，颜色跟着上下文走
+// 只剩上下文一组时，左侧显示它的名称：和右侧的点阵同属一个模块，上下文超过阈值时一起变成警示色
 export const CTX_LABEL = 'Context'
-const labelGroup = (hue: string, text: string): Group => ({
+const labelGroup = (text: string, warn: string | undefined): Group => ({
   width: textW(text, D.base),
-  draw: x => ({ stat: ink(hue, x, BASE, text, D.base), motion: '' }),
+  draw: x => ({ stat: ink(warn, x, BASE, text, D.base), motion: '' }),
 })
 
 // Icons are drawn in a CAP.h square, outer stroke edge included
 const ICON = CAP.h
 
 // icon · NUMBER suffix
-const typeGroup = (icon: (c: string) => string, hue: string, num: string, suffix: string): Group => {
+const typeGroup = (icon: () => string, hue: string, num: string, suffix: string, warn?: string): Group => {
   const lw = ICON + 6
   const nw = textW(num, D.md)
   const sw = suffix ? textW(suffix, D.sm) + 1 : 0
@@ -361,8 +371,8 @@ const typeGroup = (icon: (c: string) => string, hue: string, num: string, suffix
       const nx = x + lw
       return {
         stat:
-          `<g transform="translate(${x} ${CAP.top})">${icon(lighten(hue, -0.15))}</g>` +
-          ink(hue, nx, BASE, num, D.md) +
+          `<g transform="translate(${x} ${CAP.top})" class="g" ${paint(warn ?? hue)}>${icon()}</g>` +
+          ink(warn, nx, BASE, num, D.md) +
           (suffix ? mute(nx + nw + 1, BASE, suffix, D.sm) : ''),
         motion: '',
       }
@@ -375,7 +385,15 @@ const typeGroup = (icon: (c: string) => string, hue: string, num: string, suffix
 // 桌面端变宽时列数随之增加（点的大小和间距不变），每个点代表的比例相应变小
 // Rows sit so the dots' outer edges meet the CAP band: CAP.top + r and CAP.top + CAP.h - r
 const DOTS = { cols: 10, pitch: 5, r: 1.6, rows: [CAP.top + 1.6, CAP.top + CAP.h - 1.6] }
-const ctxGroup = (hue: string, tokens: number, window: number, pct: number, cols: number = DOTS.cols): Group => {
+const ctxGroup = (
+  hue: string,
+  tokens: number,
+  window: number,
+  pct: number,
+  cols: number = DOTS.cols,
+  warn?: string,
+): Group => {
+  const color = warn ?? hue
   const lit = Math.min(cols * 2, Math.round((pct / 100) * cols * 2))
   const num = fmtTokens(tokens)
   const suffix = `/${fmtTokens(window)}`
@@ -392,13 +410,13 @@ const ctxGroup = (hue: string, tokens: number, window: number, pct: number, cols
       const nx = mx + matrixW + D.inner
       return {
         stat:
-          `<g transform="translate(${x} ${CAP.top})">${layersIcon(lighten(hue, -0.15))}</g>` +
-          ink(hue, nx, BASE, num, D.md) +
+          `<g transform="translate(${x} ${CAP.top})" class="g" ${paint(color)}>${layersIcon()}</g>` +
+          ink(warn, nx, BASE, num, D.md) +
           mute(nx + textW(num, D.md) + 1, BASE, suffix, D.sm),
         motion:
           `<defs><clipPath id="c-ctx">${on}</clipPath></defs>` +
-          `<g class="track" style="--h:${hue}">${off}</g>` +
-          `<g fill="${lighten(hue, -0.12)}">${on}</g>` +
+          `<g class="track">${off}</g>` +
+          `<g class="g gf" ${paint(color)}>${on}</g>` +
           `<g clip-path="url(#c-ctx)"><rect y="${MID - 7}" width="18" height="14" fill="url(#shine)">` +
           `<animate attributeName="x" values="${mx - 18};${mx + matrixW};${mx + matrixW}" keyTimes="0;0.62;1" dur="2.6s" begin="${BEGIN}" repeatCount="indefinite"/></rect></g>`,
       }
@@ -413,9 +431,11 @@ const SVG_HEAD =
   `<style>` +
   `:root{color-scheme:light dark;background:transparent}` +
   `text{font-family:Inter,"SF Pro Text",system-ui,-apple-system,"Segoe UI",sans-serif;font-weight:500;font-feature-settings:"tnum","cv05"}` +
-  `.track{fill:var(--h);fill-opacity:.22}` +
-  `.ink{fill:var(--l)}.mute{fill:#8b8f97;font-weight:400}.rule{fill:#000;fill-opacity:.1}.sep{fill:#000;fill-opacity:.2}` +
-  `@media (prefers-color-scheme:dark){.ink{fill:var(--d)}.mute{fill:#9aa0a8}.rule{fill:#fff;fill-opacity:.13}.sep{fill:#fff;fill-opacity:.22}}` +
+  // 底轨统一用品牌暖灰；数字暖深灰、次要文字暖灰；图形色经 --g 在两种模式间切换
+  `.track{fill:#b0aea5;fill-opacity:.35}` +
+  `.g{--g:var(--gl)}.gf{fill:var(--g)}.gs{stroke:var(--g)}` +
+  `.num{fill:#3d3c38}.ink{fill:var(--l)}.mute{fill:#6f6c64;font-weight:400}.rule{fill:#000;fill-opacity:.1}.sep{fill:#000;fill-opacity:.2}` +
+  `@media (prefers-color-scheme:dark){.track{fill-opacity:.22}.g{--g:var(--gd)}.num{fill:#e8e6dc}.ink{fill:var(--d)}.mute{fill:#a8a59c}.rule{fill:#fff;fill-opacity:.13}.sep{fill:#fff;fill-opacity:.22}}` +
   `</style>` +
   `<defs><linearGradient id="shine" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/>` +
   `<stop offset=".5" stop-color="#fff" stop-opacity=".8"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>`
@@ -449,26 +469,20 @@ export const desktopParts = (
   }
   if (m) {
     const pct = ctxPercent(m.context)
-    const color = pct >= theme.contextWarn ? theme.warn : theme.hue.ctx
+    const warn = pct >= theme.contextWarn ? theme.warn : undefined
     // 没有额度、也还没有缓存命中率时（非订阅账号，或会话第一次回复之前）只剩上下文一组：左侧补上它的名称
     if (!five && !seven && !(t && hitRate(t) !== null)) {
-      groups.push({ key: 'label', g: labelGroup(color, CTX_LABEL), alt: CTX_LABEL })
+      groups.push({ key: 'label', g: labelGroup(CTX_LABEL, warn), alt: CTX_LABEL })
     }
     groups.push({
       key: 'ctx',
-      g: ctxGroup(
-        color,
-        m.context.tokens ?? 0,
-        m.context.window,
-        pct,
-        stretch.dotCols,
-      ),
+      g: ctxGroup(theme.hue.ctx, m.context.tokens ?? 0, m.context.window, pct, stretch.dotCols, warn),
       alt: `context ${fmtTokens(m.context.tokens ?? 0)} of ${fmtTokens(m.context.window)}`,
     })
   }
   const hit = t ? hitRate(t) : null
   if (hit !== null) {
-    const g = typeGroup(targetIcon, hit < theme.cacheWarn ? theme.warn : theme.hue.cache, `${hit}%`, '')
+    const g = typeGroup(targetIcon, theme.hue.cache, `${hit}%`, '', hit < theme.cacheWarn ? theme.warn : undefined)
     groups.push({ key: 'hit', g, alt: `cache hit ${hit}%` })
   }
   return groups.map(({ key, g, alt }) => ({ ...g.draw(1), key, alt, width: Math.ceil(g.width + 2) }))

@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](./LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-2.1.287%2B-d97757?style=flat-square)](https://claude.com/claude-code)
 [![Type: mod](https://img.shields.io/badge/type-mod-6f7be0?style=flat-square)](https://claude.com/blog/claude-code-mods)
-![Surfaces](https://img.shields.io/badge/surfaces-terminal%20%7C%20desktop-5cc4d6?style=flat-square)
+![Surfaces](https://img.shields.io/badge/surfaces-terminal%20%7C%20desktop-6a9bcc?style=flat-square)
 
 [English](./README.md) · 简体中文
 
@@ -45,7 +45,7 @@
 | **上下文窗口**（图层图标） | 当前上下文占用的 token 数和模型窗口大小，例如 `398K/1M` |
 | **缓存命中率**（靶心图标） | 上一轮输入中有多少由提示缓存提供 |
 
-- **一眼看清**：每项数据都有自己的颜色。只有在需要注意时才会变红：默认是额度或上下文超过 80%，或者缓存命中率低于 50%。阈值和颜色都可以[自己设置](#设置)。
+- **一眼看清，配色跟 Claude 一致**：数字保持中性，进度条、点阵和图标用 Claude 的品牌色（额度用蓝、上下文用 Claude 橙、缓存用橄榄绿）。只有在需要注意时才会变红：默认是额度或上下文超过 80%，或者缓存命中率低于 50%。阈值和颜色都可以[自己设置](#设置)。
 - **有动感但不打扰**：额度进度条上有一道缓慢的扫光，所有进度条同步移动。
 - **两端原生适配**：
   - 终端里是一行字符，图标可以用 Nerd Font 或普通 Unicode 字符，并且会根据窗口宽度自动调整显示的内容。
@@ -108,11 +108,11 @@ export USAGE_BAND_ICONS=unicode   # auto（默认）· nerd · unicode · ascii
 | `limitWarn` | `80` | 5h 和 7d 额度用量达到这个百分比时变成警示色 |
 | `contextWarn` | `80` | 上下文占用达到这个百分比时变成警示色 |
 | `cacheWarn` | `50` | 缓存命中率低于这个百分比时变成警示色 |
-| `colorFiveHour` | `#5cc4d6` | 5h 额度的颜色 |
-| `colorSevenDay` | `#e8a25f` | 7d 额度的颜色 |
-| `colorContext` | `#9aa5f5` | 上下文的颜色 |
-| `colorCache` | `#72cf9f` | 缓存命中率的颜色 |
-| `colorWarn` | `#e5685f` | 警示色 |
+| `colorFiveHour` | `#6a9bcc` | 5h 额度的颜色 |
+| `colorSevenDay` | `#4f7aa6` | 7d 额度的颜色 |
+| `colorContext` | `#d97757` | 上下文的颜色 |
+| `colorCache` | `#788c5d` | 缓存命中率的颜色 |
+| `colorWarn` | `#b8433b` | 警示色 |
 
 阈值的取值范围是 0–100。颜色写成 `#rrggbb` 或 `#rgb`，填错时会退回默认值。这些值保存在 `settings.json` 的 `pluginConfigs["usage-band"].options` 里，也可以直接编辑这个文件。
 
