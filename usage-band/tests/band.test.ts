@@ -253,8 +253,8 @@ test('desktop context is a 2×10 dot matrix, top row first', async () => {
   expect(lit(svgFor(100))).toBe(20)
   // 60% fills the whole top row and two dots of the bottom one
   const rows = (svgFor(60).match(/<clipPath id="c-ctx">(.*?)<\/clipPath>/)?.[1] ?? '').match(/cy="[\d.]+"/g) ?? []
-  expect(rows.filter(r => r === 'cy="11.35"').length).toBe(10)
-  expect(rows.filter(r => r === 'cy="18.15"').length).toBe(2)
+  expect(rows.filter(r => r === 'cy="6.35"').length).toBe(10)
+  expect(rows.filter(r => r === 'cy="13.15"').length).toBe(2)
 })
 
 test('the terminal bar animates once the band is drawn', async ($, on) => {
@@ -521,4 +521,25 @@ test('the context name shows only while context is the only group', async () => 
   expect(label).toContain(`--l:${lighten('#e5685f', -0.38)}`)
   // 整张拼图里名称和点阵之间也没有分隔线
   expect(desktopSvg(ctx, null, 0).svg).not.toContain('class="sep"')
+})
+
+test('desktop pieces are 20px tall and everything sits inside them', async () => {
+  const m: Measure = {
+    context: { tokens: 400_000, window: 1_000_000, percent: 40 },
+    rateLimits: [{ kind: 'five_hour', percentUsed: 30, resetsAt: new Date(3_600_000).toISOString() }],
+  }
+  const t = { input: 10, output: 0, cacheRead: 90, cacheWrite: 0 }
+  for (const p of desktopPieces(m, t, 0)) {
+    expect(p.height).toBe(20)
+    expect(p.svg).toContain('height="20" viewBox="0 0 ')
+    // 所有带 y 的元素（文字基线、进度条、扫光、分隔线）都落在 0–20 之内
+    for (const [, y, h] of p.svg.matchAll(/<(?:rect|text)[^>]*?\sy="([\d.]+)"(?:[^>]*?height="([\d.]+)")?/g)) {
+      expect(Number(y)).toBeGreaterThanOrEqual(0)
+      expect(Number(y) + Number(h ?? 0)).toBeLessThanOrEqual(20)
+    }
+    for (const [, cy] of p.svg.matchAll(/cy="([\d.]+)"/g)) {
+      expect(Number(cy)).toBeGreaterThan(0)
+      expect(Number(cy)).toBeLessThan(20)
+    }
+  }
 })

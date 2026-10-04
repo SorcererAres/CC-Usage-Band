@@ -252,10 +252,14 @@ const hasShine = (m: Measure | null, at: number, detail: 0 | 1 | 2) =>
 
 const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
-// CAP: the band the figures' cap height occupies (Inter 13px on baseline 19.5);
+// 每张分组图片高 D.h。纵向位置都相对中线 MID 来写，调高度只改 D.h：
+// 原来是 30px，内容上下各空约 9.5px，叠上宿主底框的内边距显得偏松，现在压到 20px
+const D = { h: 20, gap: 30, inner: 7, sm: 13, md: 13, base: 13, barW: 76, barH: 6 }
+const MID = D.h / 2
+// CAP: the band the figures' cap height occupies (Inter 13px on baseline BASE);
 // icons, dots and the inner rule are sized to it so the row reads one height
-const CAP = { top: 9.75, h: 10 }
-const D = { h: 30, gap: 30, inner: 7, sm: 13, md: 13, base: 13, barW: 76, barH: 6 }
+const CAP = { top: MID - 5.25, h: 10 }
+const BASE = MID + 4.5
 // Advance widths in em for Inter with tabular figures (SF Pro, the fallback, runs within a few %).
 // Each text also sets textLength to this width, so a font that runs wider or narrower only
 // changes letter spacing and never pushes into the next element.
@@ -315,10 +319,10 @@ const limitGroup = (
         `<g clip-path="url(#c-${id})"><rect y="${y}" width="18" height="${D.barH}" fill="url(#shine)">` +
           `<animate attributeName="x" values="${bx - 18};${bx + barW};${bx + barW}" keyTimes="0;0.62;1" dur="2.6s" begin="${BEGIN}" repeatCount="indefinite"/></rect></g>`,
       ]
-      const stat = [ink(color, x, 19.5, label, D.base), ink(color, px, 19.5, pctText, D.base)]
+      const stat = [ink(color, x, BASE, label, D.base), ink(color, px, BASE, pctText, D.base)]
       if (left) {
         const rx = px + pctW + D.inner
-        stat.push(`<rect x="${rx}" y="${CAP.top}" width="1" height="${CAP.h}" class="rule"/>`, mute(rx + 1 + D.inner, 19.5, left, D.sm))
+        stat.push(`<rect x="${rx}" y="${CAP.top}" width="1" height="${CAP.h}" class="rule"/>`, mute(rx + 1 + D.inner, BASE, left, D.sm))
       }
       return { stat: stat.join(''), motion: motion.join('') }
     },
@@ -340,7 +344,7 @@ const targetIcon = (color: string) =>
 export const CTX_LABEL = 'Context'
 const labelGroup = (hue: string, text: string): Group => ({
   width: textW(text, D.base),
-  draw: x => ({ stat: ink(hue, x, 19.5, text, D.base), motion: '' }),
+  draw: x => ({ stat: ink(hue, x, BASE, text, D.base), motion: '' }),
 })
 
 // Icons are drawn in a CAP.h square, outer stroke edge included
@@ -358,8 +362,8 @@ const typeGroup = (icon: (c: string) => string, hue: string, num: string, suffix
       return {
         stat:
           `<g transform="translate(${x} ${CAP.top})">${icon(lighten(hue, -0.15))}</g>` +
-          ink(hue, nx, 19.5, num, D.md) +
-          (suffix ? mute(nx + nw + 1, 19.5, suffix, D.sm) : ''),
+          ink(hue, nx, BASE, num, D.md) +
+          (suffix ? mute(nx + nw + 1, BASE, suffix, D.sm) : ''),
         motion: '',
       }
     },
@@ -370,7 +374,7 @@ const typeGroup = (icon: (c: string) => string, hue: string, num: string, suffix
 // row left to right before the bottom one, with the same shine over the lit dots.
 // 桌面端变宽时列数随之增加（点的大小和间距不变），每个点代表的比例相应变小
 // Rows sit so the dots' outer edges meet the CAP band: CAP.top + r and CAP.top + CAP.h - r
-const DOTS = { cols: 10, pitch: 5, r: 1.6, rows: [11.35, 18.15] }
+const DOTS = { cols: 10, pitch: 5, r: 1.6, rows: [CAP.top + 1.6, CAP.top + CAP.h - 1.6] }
 const ctxGroup = (hue: string, tokens: number, window: number, pct: number, cols: number = DOTS.cols): Group => {
   const lit = Math.min(cols * 2, Math.round((pct / 100) * cols * 2))
   const num = fmtTokens(tokens)
@@ -389,13 +393,13 @@ const ctxGroup = (hue: string, tokens: number, window: number, pct: number, cols
       return {
         stat:
           `<g transform="translate(${x} ${CAP.top})">${layersIcon(lighten(hue, -0.15))}</g>` +
-          ink(hue, nx, 19.5, num, D.md) +
-          mute(nx + textW(num, D.md) + 1, 19.5, suffix, D.sm),
+          ink(hue, nx, BASE, num, D.md) +
+          mute(nx + textW(num, D.md) + 1, BASE, suffix, D.sm),
         motion:
           `<defs><clipPath id="c-ctx">${on}</clipPath></defs>` +
           `<g class="track" style="--h:${hue}">${off}</g>` +
           `<g fill="${lighten(hue, -0.12)}">${on}</g>` +
-          `<g clip-path="url(#c-ctx)"><rect y="8" width="18" height="14" fill="url(#shine)">` +
+          `<g clip-path="url(#c-ctx)"><rect y="${MID - 7}" width="18" height="14" fill="url(#shine)">` +
           `<animate attributeName="x" values="${mx - 18};${mx + matrixW};${mx + matrixW}" keyTimes="0;0.62;1" dur="2.6s" begin="${BEGIN}" repeatCount="indefinite"/></rect></g>`,
       }
     },
@@ -476,7 +480,7 @@ export const desktopSvg = (m: Measure | null, t: TurnTokens | null, at: number, 
   let x = 0
   const body: string[] = []
   desktopParts(m, t, at, theme).forEach((p, i, all) => {
-    if (i > 0 && all[i - 1]?.key !== 'label') body.push(`<rect x="${Math.round(x - D.gap / 2)}" y="7" width="1" height="16" class="sep"/>`)
+    if (i > 0 && all[i - 1]?.key !== 'label') body.push(`<rect x="${Math.round(x - D.gap / 2)}" y="${MID - 8}" width="1" height="16" class="sep"/>`)
     body.push(`<g transform="translate(${x} 0)">${p.stat}${p.motion}</g>`)
     x += p.width + D.gap
   })
@@ -535,7 +539,7 @@ export const desktopPieces = (
     if (i > 0 && all[i - 1]?.key !== 'label') {
       pieces.push({
         key: `sep-${p.key}`,
-        svg: wrap(1, `<rect x="0" y="7" width="1" height="16" class="sep"/>`),
+        svg: wrap(1, `<rect x="0" y="${MID - 8}" width="1" height="16" class="sep"/>`),
         width: 1,
         height: D.h,
         alt: '',
