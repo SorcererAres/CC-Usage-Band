@@ -31,7 +31,7 @@
 > - 配色跟 Claude 一致：数字保持中性，进度条、点阵和图标用 Claude 的品牌色（1.9.0 起）。
 > - 警示文字调到在浅色和深色底上都看得清的亮度。
 >
-> 已安装的用户依次运行 `/plugin marketplace update sorcerer-usage-band` 和 `/plugin update usage-band@sorcerer-usage-band`，再新开一个会话即可更新。完整内容见[更新日志](#更新日志)。
+> 已安装的用户依次运行 `/plugin marketplace update sorcerer-usage-band` 和 `/plugin update usage-band@sorcerer-usage-band`，再新开一个会话即可更新。完整内容见[更新日志](./CHANGELOG.zh-CN.md)。
 
 ## 目录
 
@@ -89,7 +89,7 @@
   claude plugin install usage-band@sorcerer-usage-band
   ```
 
-- 用旧名称 `cc-usage-band` 装过的，先按[更新日志](#更新日志)里 2.0.1 的迁移步骤换成新名称。
+- 用旧名称 `cc-usage-band` 装过的，先按[更新日志](./CHANGELOG.zh-CN.md)里 2.0.1 的迁移步骤换成新名称。
 
 如果只想在一个会话里临时试用，可以从本地克隆后加载：
 
@@ -177,6 +177,8 @@ export USAGE_BAND_ICONS=unicode   # auto（默认）· nerd · unicode · ascii
 ```
 .
 ├── .claude-plugin/marketplace.json   # sorcerer-usage-band 插件市场
+├── .github/                          # 自动检查（GitHub Actions）与 Issue 模板
+├── CHANGELOG.zh-CN.md                # 更新日志（英文版为 CHANGELOG.md）
 └── usage-band/
     ├── .claude-plugin/plugin.json    # 插件信息
     ├── hooks/register.tsx            # 模组代码
@@ -192,7 +194,9 @@ claude plugin test .
 
 修改时用 `claude --plugin-dir ./usage-band` 加载，文件一保存，会话就会自动重新加载。`tsconfig.json` 继承的 `.claude-plugin/types/` 由 Claude Code 在加载模组时生成（已加入 `.gitignore`），所以第一次用编辑器做类型检查之前，需要先这样加载一次。
 
-欢迎提交 Issue 和 Pull Request。
+推送到 `main` 或提交 Pull Request 时，GitHub Actions 会自动运行同样的校验和测试。
+
+欢迎提交 Issue 和 Pull Request，提交 Issue 时可以选「问题反馈」或「功能建议」模板。
 
 ## 预览图
 
@@ -200,7 +204,7 @@ claude plugin test .
 
 **桌面端，浅色模式**
 
-<img src="docs/images/desktop-light-app.png" alt="usage-band 在桌面端的浅色模式效果" width="760">
+<img src="docs/images/desktop-light.png" alt="usage-band 在桌面端的浅色模式效果" width="760">
 
 **桌面端，深色模式**（5h 额度超过阈值，显示警示色）
 
@@ -212,61 +216,7 @@ claude plugin test .
 
 ## 更新日志
 
-### 2.0.2（2026-10-04）
-
-许可与说明文字的整理，功能与 2.0.1 相同。
-
-- **版权**：`LICENSE` 加入 `Copyright (c) 2026 SorcererAres`，原有的版权声明和 MIT 许可条款保持不变。
-- **说明文字**：README、插件市场描述和仓库简介改为只署 SorcererAres。
-
-### 2.0.1（2026-10-04）
-
-作者和插件市场名改为 SorcererAres 自己的，避免和其他同名插件市场冲突。
-
-- **作者**：插件和插件市场的作者改为 SorcererAres。
-- **插件市场改名**：从 `cc-usage-band` 改为 `sorcerer-usage-band`，避免和其他同名插件市场冲突。安装命令随之变为 `/plugin install usage-band@sorcerer-usage-band`。
-- **从旧名称迁移**：如果你用旧名称装过，先卸载旧的，再按新名称安装：
-
-  ```
-  /plugin uninstall usage-band@cc-usage-band
-  /plugin marketplace remove cc-usage-band
-  /plugin marketplace add SorcererAres/CC-Usage-Band
-  /plugin install usage-band@sorcerer-usage-band
-  ```
-
-### 2.0.0（2026-10-04）
-
-桌面端的文字改由 Claude 自己绘制，字体与界面一致。
-
-- **字体与 Claude 一致**：`5h`、`29%`、`3h41m`、`412K/1M` 这些文字不再画在 SVG 里，而是交给 Claude 界面绘制，自动用上界面的 Anthropic Sans 字体和正文颜色，浅色、深色模式自动切换。此前 SVG 里的文字用不了应用自带的字体，实际显示的是系统字体 SF Pro。
-- **只有图形还是 SVG**：进度条、点阵、图标和分隔线保持不变，扫光依旧同步。
-- **警示色改为中间亮度**：界面文字只能指定一种颜色，所以警示红调到在浅色和深色底上都看得清的亮度（对比度约 3.7）。
-- **无障碍**：每组的第一张图形带上这一组的说明（如「5-hour limit 29% used」），读屏软件可以读到。
-- 字号、字重由 Claude 决定，插件不再控制；数字变化时宽度可能有一两像素的轻微变化。
-- 版本号升到 2.0.0：桌面端的绘制方式整体换了一套。
-- **文档**：README 的预览图按新的绘制方式重新渲染，桌面端文字改用 Anthropic Sans 排版。
-
-### 1.9.0（2026-10-04）
-
-配色改为 Claude 的品牌风格。
-
-- **新的默认配色**：5h 额度蓝色 `#6a9bcc`、7d 额度深蓝 `#4f7aa6`、上下文 Claude 橙 `#d97757`、缓存命中率橄榄绿 `#788c5d`；警示色改为更深的红 `#b8433b`，和橙色拉开距离。
-- **数字保持中性**：数字和标签平时用中性的暖深灰（深色模式下暖浅灰），只有超过阈值时才变成警示色。终端里的数字改用终端自己的前景色。
-- **只有图形带颜色**：进度条、点阵和图标在浅色模式下略压暗、深色模式下略调亮，两种底色上都看得清；进度条和点阵的底轨统一为暖灰。
-- **更易读**：倒计时、`/1M` 这类次要文字在浅色模式下加深，对比度从 3.28 提升到 4.6。两种模式下图形对比度都不低于 3:1，文字都不低于 4.5:1。
-- `/config` 里各颜色选项的默认值同步更新；想用原来的颜色，可以在那里改回去。
-- **文档**：README 的截图换成按新配色渲染的状态栏预览，取代原来的应用界面截图，并注明是渲染预览而非应用截图。
-
-### 更早的版本
-
-- **1.8.0**：桌面端这一行变矮，整行高度从约 51px 降到约 41px。
-- **1.7.0**：去掉会话费用显示（订阅账号在第一次回复前会被误判为按量计费，显示出并不需要支付的金额）；桌面端只剩上下文一组时，左侧显示名称 `Context`。
-- **1.6.0**：终端也显示会话费用（已在 1.7.0 去掉）。
-- **1.5.0**：上下文点阵按整刻度分档（2×10、2×20、2×25、2×50）；只剩一组时居中；按量计费账号显示会话费用（已在 1.7.0 去掉）。
-- **1.4.0**：桌面端上下文点阵随窗口宽度伸缩。
-- **1.3.0**：桌面端额度进度条随窗口宽度伸缩。
-- **1.2.0**：桌面端改为横向铺满整行，窗口太窄时自动换行。
-- **1.1.0 / 1.0.7**：修复中文等 CJK 终端里这一行溢出折行、终端动画持续重绘、额度重置后读数过期、缓存命中率可能显示 `NaN%` 等问题；阈值和颜色可在 `/config` 中配置。
+每个版本的变化见 [CHANGELOG.zh-CN.md](./CHANGELOG.zh-CN.md)，也可以在 [Releases](https://github.com/SorcererAres/CC-Usage-Band/releases) 页面查看。
 
 ## 许可证
 

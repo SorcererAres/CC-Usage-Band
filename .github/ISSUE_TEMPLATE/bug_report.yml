@@ -1,0 +1,52 @@
+name: 问题反馈 / Bug report
+description: 显示不对、报错或不工作 / Something looks wrong, errors out or doesn't work
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈！请尽量附上截图，并说明是在终端还是桌面端。
+        Thanks for the report! A screenshot helps a lot, and please say whether it's the terminal or the desktop app.
+  - type: dropdown
+    id: surface
+    attributes:
+      label: 在哪里出现 / Where
+      options:
+        - 终端 / Terminal
+        - 桌面端 / Desktop app
+        - 两边都有 / Both
+    validations:
+      required: true
+  - type: input
+    id: plugin-version
+    attributes:
+      label: usage-band 版本 / usage-band version
+      description: 运行 `claude plugin list` 查看 / Run `claude plugin list`
+      placeholder: "2.0.2"
+    validations:
+      required: true
+  - type: input
+    id: claude-version
+    attributes:
+      label: Claude Code 版本 / Claude Code version
+      description: 运行 `claude --version` 查看 / Run `claude --version`
+      placeholder: "2.1.288"
+    validations:
+      required: true
+  - type: input
+    id: terminal
+    attributes:
+      label: 终端程序（终端问题必填）/ Terminal app (for terminal issues)
+      placeholder: "Ghostty / iTerm2 / macOS Terminal …"
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 发生了什么 / What happened
+      description: 看到了什么、期望看到什么；能附截图最好 / What you saw and what you expected; screenshots welcome
+    validations:
+      required: true
+  - type: textarea
+    id: settings
+    attributes:
+      label: 自定义设置（如有）/ Custom settings (if any)
+      description: 改过的阈值、颜色或 `USAGE_BAND_ICONS` / Any thresholds, colors or `USAGE_BAND_ICONS` you changed

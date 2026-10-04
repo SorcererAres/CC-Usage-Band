@@ -615,4 +615,3 @@ test('the warning text color reads on both a light and a dark band', async () =>
     expect(contrast(c, '#212121')).toBeGreaterThan(3.4)
   }
 })
-

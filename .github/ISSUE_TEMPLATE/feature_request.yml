@@ -1,0 +1,25 @@
+name: 功能建议 / Feature request
+description: 想要新功能或改进 / Suggest a new feature or an improvement
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 想解决什么问题 / What problem would it solve
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: 你的想法 / Your idea
+      description: 希望它怎么表现；有草图或截图更好 / How it should behave; sketches or screenshots welcome
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: 涉及哪一端 / Which surface
+      options:
+        - 终端 / Terminal
+        - 桌面端 / Desktop app
+        - 两边都要 / Both
