@@ -250,93 +250,102 @@ const hasShine = (m: Measure | null, at: number, detail: 0 | 1 | 2) =>
   (m?.rateLimits ?? []).some(l => (l.kind === 'five_hour' || l.kind === 'seven_day') && limitNow(l, at).pct > 0)
 
 
-// ---- Desktop: the band is one SVG drawn as a plain image. The SMIL shine runs in an image too,
-// and an image redraws in place, where an interactive (framed) SVG reloads its frame and blinks
-// the whole band on every redraw.
+// ---- Desktop: 文字交给 Claude 自己画（Text 元素），自动用上界面的 Anthropic Sans 和正文颜色；
+// 图形（进度条、点阵、图标、分隔线）仍是 SVG 图片。SVG 以图片形式插入，拿不到应用加载的网页字体，
+// 所以文字不能放在 SVG 里。图片原地重绘，不会像交互式（框架内）SVG 那样每次重绘都闪一下。
 
-const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-
-// 每张分组图片高 D.h。纵向位置都相对中线 MID 来写，调高度只改 D.h：
-// 原来是 30px，内容上下各空约 9.5px，叠上宿主底框的内边距显得偏松，现在压到 20px
-const D = { h: 20, gap: 30, inner: 7, sm: 13, md: 13, base: 13, barW: 76, barH: 6 }
+// 每张图形图片高 D.h；纵向位置都相对中线 MID。gap 是组与组之间的最小间距（估宽用），
+// inner 是组内文字与图形的间距估计（对应外层 columnGap 1 列，约 8px）
+const D = { h: 20, gap: 30, inner: 8, barW: 76, barH: 6 }
 const MID = D.h / 2
-// CAP: the band the figures' cap height occupies (Inter 13px on baseline BASE);
-// icons, dots and the inner rule are sized to it so the row reads one height
-const CAP = { top: MID - 5.25, h: 10 }
-const BASE = MID + 4.5
-// Advance widths in em for Inter with tabular figures (SF Pro, the fallback, runs within a few %).
-// Each text also sets textLength to this width, so a font that runs wider or narrower only
-// changes letter spacing and never pushes into the next element.
+// 图标、点阵按大写字母高度（约 10px）居中排布
+const CAP = { top: MID - 5, h: 10 }
+
+// 估宽用的字宽（em，按 13px 的界面字体估算，Anthropic Sans 与 SF Pro 相差不大）。
+// 只用于分配伸缩宽度，误差由外层 space-between 的间距吸收
 const ADVANCE: Record<string, number> = { h: 0.58, d: 0.6, m: 0.9, K: 0.64, M: 0.84, '%': 0.84, '/': 0.36, '.': 0.27, ' ': 0.26 }
-// Extra space between letters, in px; textLength spreads it evenly across each string
-const TRACKING = 0.2
-const textW = (v: string, size: number) =>
-  [...v].reduce((w, c) => w + (c >= '0' && c <= '9' ? 0.62 : (ADVANCE[c] ?? 0.6)), 0) * size +
-  TRACKING * Math.max(0, [...v].length - 1)
+const FONT_PX = 13
+const textW = (v: string) => [...v].reduce((w, c) => w + (c >= '0' && c <= '9' ? 0.62 : (ADVANCE[c] ?? 0.6)), 0) * FONT_PX
 
-const pinW = (v: string, size: number) => `textLength="${textW(v, size).toFixed(1)}" lengthAdjust="spacing"`
-// 数字与标签：平时是中性的暖深灰（深色模式下暖浅灰）；超过阈值时用警示色，深色模式下调亮
-const ink = (warn: string | undefined, x: number, y: number, v: string, size: number) =>
-  warn
-    ? `<text x="${x}" y="${y}" font-size="${size}" ${pinW(v, size)} class="ink" style="--l:${warn};--d:${lighten(warn, 0.35)}">${esc(v)}</text>`
-    : `<text x="${x}" y="${y}" font-size="${size}" ${pinW(v, size)} class="num">${esc(v)}</text>`
-// 图形（进度条、点阵、图标）的颜色：浅色模式略压暗、深色模式略调亮，两种底色上都看得清。
-// 元素用 class="gf"（填充）或 "gs"（描边）取 --g
-const paint = (color: string) => `style="--gl:${lighten(color, -0.12)};--gd:${lighten(color, 0.12)}"`
-const mute = (x: number, y: number, v: string, size: number) =>
-  `<text x="${x}" y="${y}" font-size="${size}" ${pinW(v, size)} class="mute">${esc(v)}</text>`
-
-// 扫光动画的起点占位符：整张拼图（去重比较、测试）里换成 0s，分组图片里换成按时钟对齐的相位
+// 扫光动画的起点占位符：去重比较、测试里换成 0s，真正绘制时换成按时钟对齐的相位
 const BEGIN = '{{shine-begin}}'
 export const SHINE_MS = 2600
 
-// stat: type, icons and rules; motion: bars and dots with their shine
-type Layers = { stat: string; motion: string }
-type Group = { width: number; draw: (x: number) => Layers }
+// 图形的颜色：浅色模式略压暗、深色模式略调亮，两种底色上都看得清。元素用 class="gf"（填充）或 "gs"（描边）取 --g
+const paint = (color: string) => `style="--gl:${lighten(color, -0.12)};--gd:${lighten(color, 0.12)}"`
 
-// 5h 60% ▬▬▬▬── 1h49m: the figure first, so the state reads before the bar
-// 5h ▬▬▬▬▬▬──── 69% │ 1h31m: label, bar, figure, then when it resets
-const limitGroup = (
-  id: string,
-  label: string,
-  l: Limit,
-  hue: string,
-  at: number,
-  theme: Theme,
-  barW: number = D.barW,
-): Group => {
+// An image takes its color scheme from the app; declaring both schemes lets it follow the app and
+// stay transparent (a frame whose scheme differs would get an opaque canvas behind it).
+const SVG_HEAD =
+  `<style>` +
+  `:root{color-scheme:light dark;background:transparent}` +
+  // 底轨统一用品牌暖灰；图形色经 --g 在两种模式间切换
+  `.track{fill:#b0aea5;fill-opacity:.35}` +
+  `.g{--g:var(--gl)}.gf{fill:var(--g)}.gs{stroke:var(--g)}.rule{fill:#000;fill-opacity:.1}.sep{fill:#000;fill-opacity:.2}` +
+  `@media (prefers-color-scheme:dark){.track{fill-opacity:.22}.g{--g:var(--gd)}.rule{fill:#fff;fill-opacity:.13}.sep{fill:#fff;fill-opacity:.22}}` +
+  `</style>` +
+  `<defs><linearGradient id="shine" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/>` +
+  `<stop offset=".5" stop-color="#fff" stop-opacity=".8"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>`
+
+const wrap = (width: number, body: string) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${D.h}" viewBox="0 0 ${width} ${D.h}" style="color-scheme:light dark;background:transparent">${SVG_HEAD}${body}</svg>`
+
+// 文字的警示色。Text 只能给一个颜色、不能按深浅模式各给一套，所以把警示色调到中间亮度
+// （相对亮度约 0.19），在浅色和深色底上对比度都约 3.7，两边都看得清
+export const warnText = (warn: string): string => {
+  const lum = (hex: string) => {
+    const n = parseInt(hex.slice(1), 16)
+    const f = (v: number) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)
+    return 0.2126 * f((n >> 16) & 255) + 0.7152 * f((n >> 8) & 255) + 0.0722 * f(n & 255)
+  }
+  let lo = -1
+  let hi = 1
+  for (let i = 0; i < 24; i++) {
+    const mid = (lo + hi) / 2
+    if (lum(lighten(warn, mid)) < 0.19) lo = mid
+    else hi = mid
+  }
+  return lighten(warn, (lo + hi) / 2)
+}
+
+// 一段文字：color 缺省时用 Claude 的正文颜色；dim 为次要文字（倒计时、/1M）
+export type DeskSpan = { text: string; color?: string; dim?: boolean }
+// 组内的一项：一段或几段紧挨着的文字，或一张图形
+export type DeskItem = { kind: 'text'; spans: DeskSpan[] } | { kind: 'svg'; svg: string; width: number }
+// 一组：key 区分 5h / 7d / label / ctx / hit；width 是估计宽度（px），只用于分配伸缩宽度
+export type DeskGroup = { key: string; alt: string; width: number; items: DeskItem[] }
+
+const txt = (...spans: DeskSpan[]): DeskItem => ({ kind: 'text', spans })
+const pic = (width: number, body: string): DeskItem => ({ kind: 'svg', svg: wrap(width, body), width })
+const itemW = (it: DeskItem) => (it.kind === 'svg' ? it.width : it.spans.reduce((w, s) => w + textW(s.text), 0))
+const group = (key: string, alt: string, items: DeskItem[]): DeskGroup => ({
+  key,
+  alt,
+  items,
+  width: Math.ceil(items.reduce((w, it) => w + itemW(it), 0) + D.inner * Math.max(0, items.length - 1)),
+})
+
+// 5h ▬▬▬▬▬▬──── 69% │ 1h31m：标签、进度条、读数，再是重置倒计时
+const limitGroup = (key: string, label: string, l: Limit, hue: string, at: number, theme: Theme, barW: number): DeskGroup => {
   const { pct, left } = limitNow(l, at)
   const warn = pct >= theme.limitWarn ? theme.warn : undefined
   const color = warn ?? hue
-  const pctText = `${pct}%`
-  const labelW = textW(label, D.base) + D.inner
-  const pctW = textW(pctText, D.base)
-  const width = labelW + barW + D.inner + pctW + (left ? D.inner * 2 + 1 + textW(left, D.sm) : 0)
+  const y = (D.h - D.barH) / 2
+  const r = D.barH / 2
   const fillW = Math.max(pct > 0 ? D.barH : 0, Math.min(barW, (barW * pct) / 100))
-  return {
-    width,
-    draw: x => {
-      const bx = x + labelW
-      const y = (D.h - D.barH) / 2
-      const r = D.barH / 2
-      const px = bx + barW + D.inner
-      const motion = [
-        `<defs><clipPath id="c-${id}"><rect x="${bx}" y="${y}" width="${fillW}" height="${D.barH}" rx="${r}"/></clipPath></defs>`,
-        `<rect x="${bx}" y="${y}" width="${barW}" height="${D.barH}" rx="${r}" class="track"/>`,
-        `<rect x="${bx}" y="${y}" width="${fillW}" height="${D.barH}" rx="${r}" class="g gf" ${paint(color)}/>`,
-        // The shine crosses the whole bar on one shared clock and shows only over the fill,
-        // so both bars' shines sit at the same spot at every moment
-        `<g clip-path="url(#c-${id})"><rect y="${y}" width="18" height="${D.barH}" fill="url(#shine)">` +
-          `<animate attributeName="x" values="${bx - 18};${bx + barW};${bx + barW}" keyTimes="0;0.62;1" dur="2.6s" begin="${BEGIN}" repeatCount="indefinite"/></rect></g>`,
-      ]
-      const stat = [ink(warn, x, BASE, label, D.base), ink(warn, px, BASE, pctText, D.base)]
-      if (left) {
-        const rx = px + pctW + D.inner
-        stat.push(`<rect x="${rx}" y="${CAP.top}" width="1" height="${CAP.h}" class="rule"/>`, mute(rx + 1 + D.inner, BASE, left, D.sm))
-      }
-      return { stat: stat.join(''), motion: motion.join('') }
-    },
-  }
+  const bar = pic(
+    barW,
+    `<defs><clipPath id="c">${`<rect x="0" y="${y}" width="${fillW}" height="${D.barH}" rx="${r}"/>`}</clipPath></defs>` +
+      `<rect x="0" y="${y}" width="${barW}" height="${D.barH}" rx="${r}" class="track"/>` +
+      `<rect x="0" y="${y}" width="${fillW}" height="${D.barH}" rx="${r}" class="g gf" ${paint(color)}/>` +
+      // 扫光走完整条进度条、只在已填充处可见；所有扫光共用同一个时钟，任何时刻都在同一位置
+      `<g clip-path="url(#c)"><rect y="${y}" width="18" height="${D.barH}" fill="url(#shine)">` +
+      `<animate attributeName="x" values="-18;${barW};${barW}" keyTimes="0;0.62;1" dur="2.6s" begin="${BEGIN}" repeatCount="indefinite"/></rect></g>`,
+  )
+  const tc = warn && warnText(warn)
+  const items = [txt({ text: label, color: tc }), bar, txt({ text: `${pct}%`, color: tc })]
+  if (left) items.push(pic(1, `<rect x="0" y="${CAP.top}" width="1" height="${CAP.h}" class="rule"/>`), txt({ text: left, dim: true }))
+  return group(key, `${key === '5h' ? '5-hour' : '7-day'} limit ${pct}% used`, items)
 }
 
 // Three stacked sheets: the context window
@@ -350,168 +359,106 @@ const targetIcon = () =>
   `<g fill="none" class="gs" stroke-width="1.2">` +
   `<circle cx="5" cy="5" r="4.4"/><circle cx="5" cy="5" r="2.1"/><circle cx="5" cy="5" r="0.7" class="gf"/></g>`
 
-// 只剩上下文一组时，左侧显示它的名称：和右侧的点阵同属一个模块，上下文超过阈值时一起变成警示色
-export const CTX_LABEL = 'Context'
-const labelGroup = (text: string, warn: string | undefined): Group => ({
-  width: textW(text, D.base),
-  draw: x => ({ stat: ink(warn, x, BASE, text, D.base), motion: '' }),
-})
-
 // Icons are drawn in a CAP.h square, outer stroke edge included
 const ICON = CAP.h
+const icon = (draw: () => string, color: string, x = 0) =>
+  `<g transform="translate(${x} ${CAP.top})" class="g" ${paint(color)}>${draw()}</g>`
 
-// icon · NUMBER suffix
-const typeGroup = (icon: () => string, hue: string, num: string, suffix: string, warn?: string): Group => {
-  const lw = ICON + 6
-  const nw = textW(num, D.md)
-  const sw = suffix ? textW(suffix, D.sm) + 1 : 0
-  return {
-    width: lw + nw + sw,
-    draw: x => {
-      const nx = x + lw
-      return {
-        stat:
-          `<g transform="translate(${x} ${CAP.top})" class="g" ${paint(warn ?? hue)}>${icon()}</g>` +
-          ink(warn, nx, BASE, num, D.md) +
-          (suffix ? mute(nx + nw + 1, BASE, suffix, D.sm) : ''),
-        motion: '',
-      }
-    },
-  }
-}
+// 只剩上下文一组时，左侧显示它的名称：和右侧的点阵同属一个模块，上下文超过阈值时一起变成警示色
+export const CTX_LABEL = 'Context'
 
 // Context as a 2-row dot matrix (2×10 by default: one dot per 1/20 of the window), filling the top
 // row left to right before the bottom one, with the same shine over the lit dots.
-// 桌面端变宽时列数随之增加（点的大小和间距不变），每个点代表的比例相应变小
+// 桌面端变宽时列数分档增加（点的大小和间距不变），每个点代表的比例相应变小
 // Rows sit so the dots' outer edges meet the CAP band: CAP.top + r and CAP.top + CAP.h - r
 const DOTS = { cols: 10, pitch: 5, r: 1.6, rows: [CAP.top + 1.6, CAP.top + CAP.h - 1.6] }
-const ctxGroup = (
-  hue: string,
-  tokens: number,
-  window: number,
-  pct: number,
-  cols: number = DOTS.cols,
-  warn?: string,
-): Group => {
+const ctxGroup = (hue: string, tokens: number, window: number, pct: number, cols: number, warn?: string): DeskGroup => {
   const color = warn ?? hue
   const lit = Math.min(cols * 2, Math.round((pct / 100) * cols * 2))
+  const mx = ICON + 6
+  const matrixW = cols * DOTS.pitch
+  const dot = (i: number) =>
+    `<circle cx="${mx + DOTS.pitch / 2 + (i % cols) * DOTS.pitch}" cy="${DOTS.rows[Math.floor(i / cols)]}" r="${DOTS.r}"/>`
+  const on = Array.from({ length: lit }, (_, i) => dot(i)).join('')
+  const off = Array.from({ length: cols * 2 - lit }, (_, i) => dot(lit + i)).join('')
+  // 图标和点阵画在同一张图里
+  const graphic = pic(
+    mx + matrixW,
+    icon(layersIcon, color) +
+      `<defs><clipPath id="c">${on}</clipPath></defs>` +
+      `<g class="track">${off}</g>` +
+      `<g class="g gf" ${paint(color)}>${on}</g>` +
+      `<g clip-path="url(#c)"><rect y="${MID - 7}" width="18" height="14" fill="url(#shine)">` +
+      `<animate attributeName="x" values="${mx - 18};${mx + matrixW};${mx + matrixW}" keyTimes="0;0.62;1" dur="2.6s" begin="${BEGIN}" repeatCount="indefinite"/></rect></g>`,
+  )
   const num = fmtTokens(tokens)
   const suffix = `/${fmtTokens(window)}`
-  const lw = ICON + 6
-  const matrixW = cols * DOTS.pitch
-  return {
-    width: lw + matrixW + D.inner + textW(num, D.md) + 1 + textW(suffix, D.sm),
-    draw: x => {
-      const mx = x + lw
-      const dot = (i: number) =>
-        `<circle cx="${mx + DOTS.pitch / 2 + (i % cols) * DOTS.pitch}" cy="${DOTS.rows[Math.floor(i / cols)]}" r="${DOTS.r}"/>`
-      const on = Array.from({ length: lit }, (_, i) => dot(i)).join('')
-      const off = Array.from({ length: cols * 2 - lit }, (_, i) => dot(lit + i)).join('')
-      const nx = mx + matrixW + D.inner
-      return {
-        stat:
-          `<g transform="translate(${x} ${CAP.top})" class="g" ${paint(color)}>${layersIcon()}</g>` +
-          ink(warn, nx, BASE, num, D.md) +
-          mute(nx + textW(num, D.md) + 1, BASE, suffix, D.sm),
-        motion:
-          `<defs><clipPath id="c-ctx">${on}</clipPath></defs>` +
-          `<g class="track">${off}</g>` +
-          `<g class="g gf" ${paint(color)}>${on}</g>` +
-          `<g clip-path="url(#c-ctx)"><rect y="${MID - 7}" width="18" height="14" fill="url(#shine)">` +
-          `<animate attributeName="x" values="${mx - 18};${mx + matrixW};${mx + matrixW}" keyTimes="0;0.62;1" dur="2.6s" begin="${BEGIN}" repeatCount="indefinite"/></rect></g>`,
-      }
-    },
-  }
+  // 读数和 /窗口大小 紧挨在一起，是同一项里的两段文字
+  return group('ctx', `context ${num} of ${fmtTokens(window)}`, [
+    graphic,
+    txt({ text: num, color: warn && warnText(warn) }, { text: suffix, dim: true }),
+  ])
 }
-
-// An image takes its color scheme from the app; a frame (should the band ever be framed) whose color scheme differs from the app's
-// gets an opaque canvas behind it (white in a dark app). Declaring both schemes lets it follow the
-// app and stay transparent.
-const SVG_HEAD =
-  `<style>` +
-  `:root{color-scheme:light dark;background:transparent}` +
-  `text{font-family:Inter,"SF Pro Text",system-ui,-apple-system,"Segoe UI",sans-serif;font-weight:500;font-feature-settings:"tnum","cv05"}` +
-  // 底轨统一用品牌暖灰；数字暖深灰、次要文字暖灰；图形色经 --g 在两种模式间切换
-  `.track{fill:#b0aea5;fill-opacity:.35}` +
-  `.g{--g:var(--gl)}.gf{fill:var(--g)}.gs{stroke:var(--g)}` +
-  `.num{fill:#3d3c38}.ink{fill:var(--l)}.mute{fill:#6f6c64;font-weight:400}.rule{fill:#000;fill-opacity:.1}.sep{fill:#000;fill-opacity:.2}` +
-  `@media (prefers-color-scheme:dark){.track{fill-opacity:.22}.g{--g:var(--gd)}.num{fill:#e8e6dc}.ink{fill:var(--d)}.mute{fill:#a8a59c}.rule{fill:#fff;fill-opacity:.13}.sep{fill:#fff;fill-opacity:.22}}` +
-  `</style>` +
-  `<defs><linearGradient id="shine" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/>` +
-  `<stop offset=".5" stop-color="#fff" stop-opacity=".8"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>`
-
-const wrap = (width: number, body: string) =>
-  `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${D.h}" viewBox="0 0 ${width} ${D.h}" style="color-scheme:light dark;background:transparent">${SVG_HEAD}${body}</svg>`
-
-export type Part = Layers & { key: string; width: number; alt: string }
 
 // 桌面端可伸缩部分的尺寸：额度进度条长度（px）与上下文点阵列数
 export type Stretch = { barW: number; dotCols: number }
 export const DEFAULT_STRETCH: Stretch = { barW: D.barW, dotCols: DOTS.cols }
 
-export const desktopParts = (
+// 桌面端这一行的所有分组，按显示顺序。begin 是扫光起点：比较与测试用 0s，绘制时用按时钟对齐的相位
+export const desktopGroups = (
   m: Measure | null,
   t: TurnTokens | null,
   at: number,
   theme: Theme = DEFAULT_THEME,
   stretch: Stretch = DEFAULT_STRETCH,
-): Part[] => {
-  const groups: { key: string; g: Group; alt: string }[] = []
+  begin = '0s',
+): DeskGroup[] => {
+  const groups: DeskGroup[] = []
   const five = m?.rateLimits.find(l => l.kind === 'five_hour')
   const seven = m?.rateLimits.find(l => l.kind === 'seven_day')
-  if (five) {
-    const g = limitGroup('5h', '5h', five, theme.hue.five, at, theme, stretch.barW)
-    groups.push({ key: '5h', g, alt: `5-hour limit ${limitNow(five, at).pct}% used` })
-  }
-  if (seven) {
-    const g = limitGroup('7d', '7d', seven, theme.hue.seven, at, theme, stretch.barW)
-    groups.push({ key: '7d', g, alt: `7-day limit ${limitNow(seven, at).pct}% used` })
-  }
+  if (five) groups.push(limitGroup('5h', '5h', five, theme.hue.five, at, theme, stretch.barW))
+  if (seven) groups.push(limitGroup('7d', '7d', seven, theme.hue.seven, at, theme, stretch.barW))
+  const hit = t ? hitRate(t) : null
   if (m) {
     const pct = ctxPercent(m.context)
     const warn = pct >= theme.contextWarn ? theme.warn : undefined
     // 没有额度、也还没有缓存命中率时（非订阅账号，或会话第一次回复之前）只剩上下文一组：左侧补上它的名称
-    if (!five && !seven && !(t && hitRate(t) !== null)) {
-      groups.push({ key: 'label', g: labelGroup(CTX_LABEL, warn), alt: CTX_LABEL })
+    if (!five && !seven && hit === null) {
+      groups.push(group('label', CTX_LABEL, [txt({ text: CTX_LABEL, color: warn && warnText(warn) })]))
     }
-    groups.push({
-      key: 'ctx',
-      g: ctxGroup(theme.hue.ctx, m.context.tokens ?? 0, m.context.window, pct, stretch.dotCols, warn),
-      alt: `context ${fmtTokens(m.context.tokens ?? 0)} of ${fmtTokens(m.context.window)}`,
-    })
+    groups.push(ctxGroup(theme.hue.ctx, m.context.tokens ?? 0, m.context.window, pct, stretch.dotCols, warn))
   }
-  const hit = t ? hitRate(t) : null
   if (hit !== null) {
-    const g = typeGroup(targetIcon, theme.hue.cache, `${hit}%`, '', hit < theme.cacheWarn ? theme.warn : undefined)
-    groups.push({ key: 'hit', g, alt: `cache hit ${hit}%` })
+    const warn = hit < theme.cacheWarn ? theme.warn : undefined
+    groups.push(
+      group('hit', `cache hit ${hit}%`, [
+        pic(ICON, icon(targetIcon, warn ?? theme.hue.cache)),
+        txt({ text: `${hit}%`, color: warn && warnText(warn) }),
+      ]),
+    )
   }
-  return groups.map(({ key, g, alt }) => ({ ...g.draw(1), key, alt, width: Math.ceil(g.width + 2) }))
+  return groups.map(g => ({
+    ...g,
+    items: g.items.map(it => (it.kind === 'svg' ? { ...it, svg: it.svg.split(BEGIN).join(begin) } : it)),
+  }))
 }
 
-// One SVG for the whole band, so every shine runs on the same clock. Groups sit D.gap apart
-// with a hairline centred in each gap; the one inside a limit group is shorter and fainter.
-export const desktopSvg = (m: Measure | null, t: TurnTokens | null, at: number, theme: Theme = DEFAULT_THEME) => {
-  let x = 0
-  const body: string[] = []
-  desktopParts(m, t, at, theme).forEach((p, i, all) => {
-    if (i > 0 && all[i - 1]?.key !== 'label') body.push(`<rect x="${Math.round(x - D.gap / 2)}" y="${MID - 8}" width="1" height="16" class="sep"/>`)
-    body.push(`<g transform="translate(${x} 0)">${p.stat}${p.motion}</g>`)
-    x += p.width + D.gap
-  })
-  const width = Math.max(1, Math.ceil(x - D.gap))
-  return { svg: wrap(width, body.join('').split(BEGIN).join('0s')), width, height: D.h }
-}
+// 图形图片的高度（绘制时用）
+export const DESK_H = D.h
 
-// 每张分组图片的 SMIL 时钟从图片载入时起算。把扫光的起点设成「此刻在周期里的相位」取负，
+// 组与组之间的分隔线（名称和点阵是同一个模块，中间不画）
+export const SEP_SVG = wrap(1, `<rect x="0" y="${MID - 8}" width="1" height="16" class="sep"/>`)
+export const needsSep = (groups: DeskGroup[], i: number) => i > 0 && groups[i - 1]?.key !== 'label'
+
+// 每张图片的 SMIL 时钟从图片载入时起算。把扫光的起点设成「此刻在周期里的相位」取负，
 // 同一次绘制载入的图片就都对齐到同一个时钟上，拆成多张图后扫光依旧同步
 export const shineBegin = (now: number) => `-${((((now % SHINE_MS) + SHINE_MS) % SHINE_MS) / 1000).toFixed(2)}s`
 
-export type Piece = { key: string; svg: string; width: number; height: number; alt: string }
-
 // 桌面端一列约合多少 CSS 像素。宿主只上报列数：实测这一行 95 列、宽约 768px，约 8.1px/列，取 8 偏保守
 export const PX_PER_COL = 8
-// 伸缩部分的上下限（进度条长度 px、点阵列数）；估算误差留出的余量（剩下的空隙由外层 space-between 吸收，不会挤到换行）
-export const BAR = { min: 40, max: 360, slack: 24 }
+// 伸缩部分的上下限（进度条长度 px）；估算误差留出的余量。文字改由宿主绘制后字宽只能估算，余量放宽到 48px，
+// 剩下的空隙由外层 space-between 吸收，不会挤到换行
+export const BAR = { min: 40, max: 360, slack: 48 }
 // 点阵列数只取这几档，每个点分别代表 5%、2.5%、2%、1%，点亮几个点始终对应整齐的刻度
 export const DOT_STEPS = [10, 20, 25, 50] as const
 
@@ -525,12 +472,12 @@ export const fitStretch = (
   bodyColumns: number,
 ): Stretch => {
   if (!(bodyColumns > 0)) return DEFAULT_STRETCH
-  const parts = desktopParts(m, t, at, theme, { barW: 0, dotCols: 0 })
-  const stretchy = parts.filter(p => p.key === '5h' || p.key === '7d' || p.key === 'ctx').length
+  const groups = desktopGroups(m, t, at, theme, { barW: 0, dotCols: 0 })
+  const stretchy = groups.filter(g => g.key === '5h' || g.key === '7d' || g.key === 'ctx').length
   if (stretchy === 0) return DEFAULT_STRETCH
   // 外层 Box 左右各留 1 列内边距
   const room = (bodyColumns - 2) * PX_PER_COL - BAR.slack
-  const used = parts.reduce((w, p) => w + p.width, 0) + (parts.length - 1) * D.gap
+  const used = groups.reduce((w, g) => w + g.width, 0) + (groups.length - 1) * D.gap
   const share = (room - used) / stretchy
   return {
     barW: Math.round(Math.min(BAR.max, Math.max(BAR.min, share))),
@@ -538,38 +485,12 @@ export const fitStretch = (
   }
 }
 
-// 水平自适应：每个分组和每条分隔线各是一张图片，由外层弹性布局横向铺满整行，窄时换行
-export const desktopPieces = (
-  m: Measure | null,
-  t: TurnTokens | null,
-  at: number,
-  theme: Theme = DEFAULT_THEME,
-  begin = '0s',
-  stretch: Stretch = DEFAULT_STRETCH,
-): Piece[] => {
-  const pieces: Piece[] = []
-  desktopParts(m, t, at, theme, stretch).forEach((p, i, all) => {
-    // 名称和点阵是同一个模块，中间不画分隔线
-    if (i > 0 && all[i - 1]?.key !== 'label') {
-      pieces.push({
-        key: `sep-${p.key}`,
-        svg: wrap(1, `<rect x="0" y="${MID - 8}" width="1" height="16" class="sep"/>`),
-        width: 1,
-        height: D.h,
-        alt: '',
-      })
-    }
-    const body = `${p.stat}${p.motion}`.split(BEGIN).join(begin)
-    pieces.push({ key: p.key, svg: wrap(p.width, body), width: p.width, height: D.h, alt: p.alt })
-  })
-  return pieces
-}
-
 // The desktop app redraws the band, and its frame blinks, on every write a drawing reads. So a
 // reading is only written when it changes what the band shows: a new token count that rounds to
 // the same figure, or a clock tick that leaves every countdown as it was, writes nothing.
 // 比较时要用这次加载的配色与阈值：自定义阈值下跨过阈值只改颜色，用默认值比较会漏掉这次变化
-const shown = (m: Measure | null, t: TurnTokens | null, at: number, theme: Theme) => desktopSvg(m, t, at, theme).svg
+const shown = (m: Measure | null, t: TurnTokens | null, at: number, theme: Theme) =>
+  JSON.stringify(desktopGroups(m, t, at, theme))
 
 const tick = async ($: EngineInterface, theme: Theme) => {
   const at = await $.clock.now()
@@ -626,10 +547,10 @@ export const register: Register = (on, options) => {
   // 进度条不在屏上（问卷占位、窄屏去掉了进度条、没有额度数据）时帧计数就停下，不再每秒重绘 5 次；
   // 回到屏上的那次绘制会让它继续
   let isShining = false
-  // 桌面端上一次画出的分组图片。显示内容不变时原样复用，图片不会重新载入；
+  // 桌面端上一次画出的分组。显示内容不变时原样复用，图片不会重新载入；
   // 内容一变就整组按新相位重建，所有图片一起重新载入，扫光仍然对齐
   let lastBand = ''
-  let lastPieces: Piece[] = []
+  let lastGroups: DeskGroup[] = []
 
   on('session.start', async ($, e, next) => {
     const result = await next(e)
@@ -718,28 +639,50 @@ export const register: Register = (on, options) => {
 
     // Desktop and mobile animate inside the SVG, so they never read the frame counter
     if (e.surface === 'desktop' || e.surface === 'mobile') {
-      const { Box, Svg } = $.ui.resolve(e)
+      const { Box, Svg, Text } = $.ui.resolve(e)
       const stretch = fitStretch(m, t, at, theme, e.props.bodyColumns)
       // 宽度变了（进度条长度、点阵列数变了）也要整组重建
-      const band = `${stretch.barW}|${stretch.dotCols}|${desktopSvg(m, t, at, theme).svg}`
+      const band = `${stretch.barW}|${stretch.dotCols}|${shown(m, t, at, theme)}`
       if (band !== lastBand) {
         lastBand = band
-        lastPieces = desktopPieces(m, t, at, theme, shineBegin(await $.clock.now()), stretch)
+        lastGroups = desktopGroups(m, t, at, theme, stretch, shineBegin(await $.clock.now()))
       }
+      const groups = lastGroups
+      // 文字由 Claude 绘制：不指定颜色时就是界面的正文颜色，深浅模式自动切换
+      const span = (sp: DeskSpan, key: string) => (
+        <Text key={key} {...(sp.color ? { color: sp.color } : {})} dimColor={sp.dim === true}>
+          {sp.text}
+        </Text>
+      )
+      // 每组的第一张图带上这一组的说明，供读屏软件使用；其余图形是装饰
+      const item = (it: DeskItem, key: string, alt: string) =>
+        it.kind === 'svg' ? (
+          <Svg key={key} source={it.svg} alt={alt} width={it.width} height={DESK_H} />
+        ) : it.spans.length === 1 ? (
+          span(it.spans[0]!, key)
+        ) : (
+          <Box key={key} flexDirection="row">
+            {it.spans.map((sp, i) => span(sp, `${key}-${i}`))}
+          </Box>
+        )
       // 两组及以上时组间距平分剩余空间；只有一组时居中，免得整行偏向左边
-      const groupCount = lastPieces.filter(p => !p.key.startsWith('sep-')).length
       return (
         <Box
           flexDirection="row"
           flexWrap="wrap"
-          justifyContent={groupCount > 1 ? 'space-between' : 'center'}
+          justifyContent={groups.length > 1 ? 'space-between' : 'center'}
           alignItems="center"
           flexGrow={1}
           paddingX={1}
         >
-          {lastPieces.map(p => (
-            <Svg key={p.key} source={p.svg} alt={p.alt} width={p.width} height={p.height} />
-          ))}
+          {groups.flatMap((g, i) => [
+            ...(needsSep(groups, i) ? [<Svg key={`sep-${g.key}`} source={SEP_SVG} alt="" width={1} height={DESK_H} />] : []),
+            <Box key={g.key} flexDirection="row" alignItems="center" columnGap={1}>
+              {g.items.map((it, j) =>
+                item(it, `${g.key}-${j}`, j === g.items.findIndex(x => x.kind === 'svg') ? g.alt : ''),
+              )}
+            </Box>,
+          ])}
         </Box>
       )
     }

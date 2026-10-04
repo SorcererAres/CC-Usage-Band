@@ -4,14 +4,15 @@ import {
   bar,
   columns,
   ctxPercent,
-  desktopParts,
-  desktopPieces,
+  desktopGroups,
+  SEP_SVG,
+  needsSep,
+  warnText,
   fitStretch,
   PX_PER_COL,
   BAR,
   DOT_STEPS,
   DEFAULT_STRETCH,
-  desktopSvg,
   shineBegin,
   detectStyle,
   fit,
@@ -28,7 +29,14 @@ import {
   to256,
   width,
 } from '../hooks/register'
+import type { DeskGroup } from '../hooks/register'
 import type { Measure } from '../types'
+
+// 桌面端一组里的图形（SVG 源码拼在一起）与文字
+const svgsOf = (g?: DeskGroup) => (g?.items ?? []).flatMap(it => (it.kind === 'svg' ? [it.svg] : [])).join('')
+const spansOf = (g?: DeskGroup) => (g?.items ?? []).flatMap(it => (it.kind === 'text' ? it.spans : []))
+const wordsOf = (g?: DeskGroup) => spansOf(g).map(s => s.text)
+const groupOf = (gs: DeskGroup[], key: string) => gs.find(g => g.key === key)
 
 const BAND = {
   component: 'AbovePrompt',
@@ -79,22 +87,28 @@ test('band shows limits, context and the last turn on terminal and desktop', asy
   })
 
   const desk = await $.ui.mount({ plugin: 'usage-band', surface: 'desktop', ...BAND })
-  // 每组一张图片（不用会在重绘时闪烁的交互式 SVG），四组之间各一条分隔线，由弹性布局横向铺满
+  // 文字交给 Claude 绘制（Text 元素），自动用上界面字体；图形是图片（不用会在重绘时闪烁的交互式 SVG）
+  for (const text of ['5h', '20%', '7d', '58%', '100K', '/1M', '90%']) {
+    expect(await desk.find({ type: 'Text', text })).toBeDefined()
+  }
   const svgs = await desk.findAll({ type: 'Svg' })
+  // 两条进度条、上下文图形、缓存图标，加上组间三条分隔线
+  expect(svgs.length).toBe(7)
+  expect(svgs.filter(s => s.props.source === SEP_SVG).length).toBe(3)
+  for (const s of svgs) expect(s.props.isInteractive).toBeFalsy()
+  expect(svgs.some(s => String(s.props.source).includes('<animate'))).toBe(true)
+  // 图形里不再有文字
+  expect(svgs.some(s => String(s.props.source).includes('<text'))).toBe(false)
+  // 每组的第一张图带上这一组的说明
   expect(svgs.map(s => s.props.alt).filter(Boolean)).toEqual([
     '5-hour limit 20% used',
     '7-day limit 58% used',
     'context 100K of 1M',
     'cache hit 90%',
   ])
-  expect(svgs.length).toBe(7)
-  expect(svgs.filter(s => String(s.props.source).includes('class="sep"')).length).toBe(3)
-  for (const s of svgs) expect(s.props.isInteractive).toBeFalsy()
-  expect(String(svgs[0]?.props.source)).toContain('<animate')
   const row = await desk.find({ type: 'Box' })
   expect(row?.props.justifyContent).toBe('space-between')
   expect(row?.props.flexWrap).toBe('wrap')
-  expect(await desk.find({ type: 'Text' })).toBeUndefined()
   await desk.unmount()
 
   for (const surface of ['terminal'] as const) {
@@ -180,8 +194,11 @@ test('a window past its reset shows 0% with no countdown until the next reading'
   const spans = layout(m, null, at, 1)
   expect(spans.some(s => s.text === '0%')).toBe(true)
   expect(spans.some(s => s.text.includes('·'))).toBe(false)
-  expect(desktopParts(m, null, at)[0]?.alt).toBe('5-hour limit 0% used')
-  expect(desktopSvg(m, null, at).svg).not.toContain('class="rule"')
+  const five = desktopGroups(m, null, at)[0]
+  expect(five?.alt).toBe('5-hour limit 0% used')
+  // 桌面端同样没有倒计时，也没有它前面的刻度线
+  expect(wordsOf(five)).toEqual(['5h', '0%'])
+  expect(svgsOf(five)).not.toContain('class="rule"')
 })
 
 test('the bar highlight moves left to right and keeps the bar width', async () => {
@@ -244,17 +261,17 @@ test('bars of different fill keep their highlights in step', async () => {
 
 test('desktop context is a 2×10 dot matrix, top row first', async () => {
   const svgFor = (pct: number) =>
-    desktopSvg({ context: { tokens: pct * 10_000, window: 1_000_000, percent: pct }, rateLimits: [] }, null, 0).svg
-  const lit = (svg: string) => (svg.match(/<clipPath id="c-ctx">(.*?)<\/clipPath>/)?.[1]?.match(/<circle/g) ?? []).length
+    svgsOf(groupOf(desktopGroups({ context: { tokens: pct * 10_000, window: 1_000_000, percent: pct }, rateLimits: [] }, null, 0), 'ctx'))
+  const lit = (svg: string) => (svg.match(/<clipPath id="c">(.*?)<\/clipPath>/)?.[1]?.match(/<circle/g) ?? []).length
   const all = (svg: string) => (svg.match(/<circle [^>]*r="1.6"/g) ?? []).length
   expect(all(svgFor(35))).toBe(20 + 7)
   expect(lit(svgFor(35))).toBe(7)
   expect(lit(svgFor(0))).toBe(0)
   expect(lit(svgFor(100))).toBe(20)
   // 60% fills the whole top row and two dots of the bottom one
-  const rows = (svgFor(60).match(/<clipPath id="c-ctx">(.*?)<\/clipPath>/)?.[1] ?? '').match(/cy="[\d.]+"/g) ?? []
-  expect(rows.filter(r => r === 'cy="6.35"').length).toBe(10)
-  expect(rows.filter(r => r === 'cy="13.15"').length).toBe(2)
+  const rows = (svgFor(60).match(/<clipPath id="c">(.*?)<\/clipPath>/)?.[1] ?? '').match(/cy="[\d.]+"/g) ?? []
+  expect(rows.filter(r => r === 'cy="6.6"').length).toBe(10)
+  expect(rows.filter(r => r === 'cy="13.4"').length).toBe(2)
 })
 
 test('the terminal bar animates once the band is drawn', async ($, on) => {
@@ -301,23 +318,25 @@ test('the terminal frame clock stops while no bar is shining', async ($, on) => 
 })
 
 test('the desktop SVG declares both color schemes so a dark app gets no white backdrop', async () => {
-  const { svg } = desktopSvg({ context: { tokens: 1, window: 10, percent: 10 }, rateLimits: [] }, null, 0)
-  expect(svg).toContain('color-scheme:light dark')
-  expect(svg).toContain('prefers-color-scheme:dark')
+  const gs = desktopGroups({ context: { tokens: 1, window: 10, percent: 10 }, rateLimits: [] }, null, 0)
+  for (const svg of [svgsOf(groupOf(gs, 'ctx')), SEP_SVG]) {
+    expect(svg).toContain('color-scheme:light dark')
+    expect(svg).toContain('prefers-color-scheme:dark')
+  }
 })
 
-
-test('a redraw that changes nothing visible is not written', async ($, on) => {
+test('a redraw that changes nothing visible is not written', async () => {
   const at = Date.parse('2026-10-03T12:00:00Z')
   const m: Measure = {
     context: { tokens: 100_000, window: 1_000_000, percent: 10 },
     rateLimits: [{ kind: 'five_hour', percentUsed: 20, resetsAt: new Date(at + 3 * 3_600_000 + 30 * 60_000).toISOString() }],
   }
+  const shown = (mm: Measure, when: number) => JSON.stringify(desktopGroups(mm, null, when))
   // 3h30m and 3h30m less 20 seconds both read 3h30m; 100,040 tokens still reads 100K
-  expect(desktopSvg(m, null, at).svg).toBe(desktopSvg(m, null, at + 20_000).svg)
-  expect(desktopSvg(m, null, at).svg).toBe(
-    desktopSvg({ ...m, context: { ...m.context, tokens: 100_040 } }, null, at).svg,
-  )
+  expect(shown(m, at)).toBe(shown(m, at + 20_000))
+  expect(shown(m, at)).toBe(shown({ ...m, context: { ...m.context, tokens: 100_040 } }, at))
+  // 读数真的变了才算变
+  expect(shown(m, at)).not.toBe(shown({ ...m, context: { ...m.context, tokens: 180_000 } }, at))
 })
 
 test('options parse into a theme; bad values fall back to the defaults', async () => {
@@ -360,10 +379,12 @@ test('custom thresholds and colors decide when and how a metric warns', async ()
   const plain = (text: string) => layout(m, t, 0, 0).find(s => s.text === text)?.color
   expect(plain('60%')).toBeUndefined()
   expect(plain('94%')).toBeUndefined()
-  // 桌面端同样使用配置：进度条底色带着各自的颜色
-  const svg = desktopSvg(m, t, 0, theme).svg
-  expect(svg).toContain(`--gl:${lighten('#ff0000', -0.12)}`)
-  expect(svg).toContain(`--gl:${lighten('#00ff00', -0.12)}`)
+  // 桌面端同样使用配置：进度条带着各自的颜色，超过阈值的读数用警示色，其余文字不着色
+  const gs = desktopGroups(m, t, 0, theme)
+  expect(svgsOf(groupOf(gs, '5h'))).toContain(`--gl:${lighten('#ff0000', -0.12)}`)
+  expect(svgsOf(groupOf(gs, '7d'))).toContain(`--gl:${lighten('#00ff00', -0.12)}`)
+  expect(spansOf(groupOf(gs, '5h')).find(sp => sp.text === '60%')?.color).toBe(warnText('#ff0000'))
+  expect(spansOf(groupOf(gs, '7d')).find(sp => sp.text === '59%')?.color).toBeUndefined()
 })
 
 test(
@@ -385,11 +406,12 @@ test(
     await ui.unmount()
     const desk = await $.ui.mount({ plugin: 'usage-band', surface: 'desktop', ...BAND })
     expect(String((await desk.find({ type: 'Svg' }))?.props.source)).toContain(`--gl:${lighten('#ff0000', -0.12)}`)
+    expect((await desk.find({ type: 'Text', text: '55%' }))?.props.color).toBe(warnText('#ff0000'))
     await desk.unmount()
   },
 )
 
-test('desktop pieces start every shine at the same phase of one clock', async () => {
+test('desktop graphics start every shine at the same phase of one clock', async () => {
   expect(shineBegin(0)).toBe('-0.00s')
   expect(shineBegin(2_600 * 1000 + 1_300)).toBe('-1.30s')
   const m: Measure = {
@@ -399,17 +421,19 @@ test('desktop pieces start every shine at the same phase of one clock', async ()
       { kind: 'seven_day', percentUsed: 60 },
     ],
   }
-  const pieces = desktopPieces(m, null, 0, undefined, '-1.30s')
-  const begins = pieces.flatMap(p => [...p.svg.matchAll(/begin="([^"]+)"/g)].map(x => x[1]))
+  const gs = desktopGroups(m, null, 0, undefined, undefined, '-1.30s')
+  const svg = gs.map(svgsOf).join('')
   // 两条进度条和上下文点阵，三处扫光同一个起点
-  expect(begins).toEqual(['-1.30s', '-1.30s', '-1.30s'])
+  expect([...svg.matchAll(/begin="([^"]+)"/g)].map(x => x[1])).toEqual(['-1.30s', '-1.30s', '-1.30s'])
   // 每张图都是完整的 SVG 文档，带自己的样式（深色模式）和渐变定义
-  for (const p of pieces) {
-    expect(p.svg.startsWith('<svg')).toBe(true)
-    expect(p.svg).toContain('prefers-color-scheme:dark')
-  }
-  // 整张拼图（去重比较用）里没有残留占位符
-  expect(desktopSvg(m, null, 0).svg).not.toContain('shine-begin')
+  for (const g of gs)
+    for (const it of g.items)
+      if (it.kind === 'svg') {
+        expect(it.svg.startsWith('<svg')).toBe(true)
+        expect(it.svg).toContain('prefers-color-scheme:dark')
+      }
+  // 比较用的版本里没有残留占位符
+  expect(JSON.stringify(desktopGroups(m, null, 0))).not.toContain('shine-begin')
 })
 
 test('desktop bars and the context dots stretch with the band width, within bounds', async () => {
@@ -439,20 +463,19 @@ test('desktop bars and the context dots stretch with the band width, within boun
   expect(ctxOnly.dotCols).toBeGreaterThan(at(95).dotCols)
   // 伸缩后整行（含组间距）不超过这一行的估算宽度，不会被挤到换行
   for (const cols of [60, 95, 120, 160]) {
-    const groups = desktopPieces(m, t, 0, DEFAULT_THEME, '0s', at(cols)).filter(p => p.alt)
-    const total = groups.reduce((n, p) => n + p.width, 0) + (groups.length - 1) * 30
+    const groups = desktopGroups(m, t, 0, DEFAULT_THEME, at(cols))
+    const total = groups.reduce((n, g) => n + g.width, 0) + (groups.length - 1) * 30
     if (at(cols).barW > BAR.min) expect(total).toBeLessThanOrEqual((cols - 2) * PX_PER_COL)
   }
   // 进度条的底轨就是这个长度
-  const svg = desktopPieces(m, t, 0, DEFAULT_THEME, '0s', { barW: 200, dotCols: 10 }).find(p => p.key === '5h')?.svg ?? ''
+  const svg = svgsOf(groupOf(desktopGroups(m, t, 0, DEFAULT_THEME, { barW: 200, dotCols: 10 }), '5h'))
   expect(svg).toMatch(/width="200" height="6"[^>]*class="track"/)
 })
 
 test('a wider dot matrix keeps two rows and the same fill ratio', async () => {
   const m: Measure = { context: { tokens: 500_000, window: 1_000_000, percent: 50 }, rateLimits: [] }
-  const ctx = (dotCols: number) =>
-    desktopPieces(m, null, 0, DEFAULT_THEME, '0s', { barW: 76, dotCols }).find(p => p.key === 'ctx')?.svg ?? ''
-  const lit = (svg: string) => (svg.match(/<clipPath id="c-ctx">(.*?)<\/clipPath>/)?.[1]?.match(/<circle/g) ?? []).length
+  const ctx = (dotCols: number) => svgsOf(groupOf(desktopGroups(m, null, 0, DEFAULT_THEME, { barW: 76, dotCols }), 'ctx'))
+  const lit = (svg: string) => (svg.match(/<clipPath id="c">(.*?)<\/clipPath>/)?.[1]?.match(/<circle/g) ?? []).length
   const all = (svg: string) => (svg.match(/<circle [^>]*r="1.6"/g) ?? []).length
   // 50%：10 列点亮 10 个，30 列点亮 30 个（都是整个上排）
   expect(lit(ctx(10))).toBe(10)
@@ -477,9 +500,10 @@ test('the desktop band sizes its bars from the columns it is given', async ($, o
       component: 'AbovePrompt',
       props: { ...BAND.props, bodyColumns } as never,
     })
-    const five = (await ui.findAll({ type: 'Svg' })).find(s => s.props.alt === '5-hour limit 50% used')
+    // 第一张图就是 5h 的进度条
+    const bar = (await ui.findAll({ type: 'Svg' }))[0]
     await ui.unmount()
-    return Number(five?.props.width)
+    return Number(bar?.props.width)
   }
   expect(await widthAt(60)).toBeGreaterThan(await widthAt(40))
 })
@@ -500,47 +524,51 @@ test('a lone context group is named on the left, its dots on the right', async (
     component: 'AbovePrompt',
     props: { ...BAND.props, bodyColumns: 95 } as never,
   })
-  const svgs = await ui.findAll({ type: 'Svg' })
-  // 名称在左、点阵在右，两者之间没有分隔线；不再显示费用
-  expect(svgs.map(s => s.props.alt)).toEqual(['Context', 'context 632K of 1M'])
-  expect(svgs.some(s => String(s.props.source).includes('$'))).toBe(false)
+  // 名称在左（中性文字，由 Claude 绘制），点阵在右；不再显示费用
+  const label = await ui.find({ type: 'Text', text: 'Context' })
+  expect(label).toBeDefined()
+  expect(label?.props.color).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: '632K' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /\$/ })).toBeUndefined()
   expect((await ui.find({ type: 'Box' }))?.props.justifyContent).toBe('space-between')
-  // 名称平时是中性文字
-  expect(String(svgs[0]?.props.source)).toContain('class="num">Context<')
+  // 只有点阵这一张图，名称和点阵之间没有分隔线
+  const svgs = await ui.findAll({ type: 'Svg' })
+  expect(svgs.length).toBe(1)
   // 点阵 2×50，每点 1%：63% 点亮 63 个
-  expect((String(svgs[1]?.props.source).match(/<circle [^>]*r="1.6"/g) ?? []).length).toBe(50 * 2 + 63)
+  expect((String(svgs[0]?.props.source).match(/<circle [^>]*r="1.6"/g) ?? []).length).toBe(50 * 2 + 63)
   await ui.unmount()
 })
 
 test('the context name shows only while context is the only group', async () => {
   const ctx: Measure = { context: { tokens: 850_000, window: 1_000_000, percent: 85 }, rateLimits: [] }
-  const keys = (mm: Measure, t: Parameters<typeof desktopParts>[1] = null) => desktopParts(mm, t, 0).map(p => p.key)
+  const keys = (mm: Measure, t: Parameters<typeof desktopGroups>[1] = null) => desktopGroups(mm, t, 0).map(g => g.key)
   expect(keys(ctx)).toEqual(['label', 'ctx'])
   // 有了缓存命中率或额度，名称就去掉
   expect(keys(ctx, { input: 10, output: 0, cacheRead: 90, cacheWrite: 0 })).toEqual(['ctx', 'hit'])
   expect(keys({ ...ctx, rateLimits: [{ kind: 'five_hour', percentUsed: 10 }] })).toEqual(['5h', 'ctx'])
   // 上下文超过阈值时名称一起变成警示色
-  const label = desktopPieces(ctx, null, 0)[0]?.svg ?? ''
-  expect(label).toContain(`--l:${DEFAULT_THEME.warn}`)
-  // 整张拼图里名称和点阵之间也没有分隔线
-  expect(desktopSvg(ctx, null, 0).svg).not.toContain('class="sep"')
+  const gs = desktopGroups(ctx, null, 0)
+  expect(spansOf(gs[0])[0]?.color).toBe(warnText(DEFAULT_THEME.warn))
+  // 名称和点阵之间不画分隔线
+  expect(needsSep(gs, 1)).toBe(false)
+  expect(needsSep(desktopGroups(ctx, { input: 10, output: 0, cacheRead: 90, cacheWrite: 0 }, 0), 1)).toBe(true)
 })
 
-test('desktop pieces are 20px tall and everything sits inside them', async () => {
+test('desktop graphics are 20px tall and everything sits inside them', async () => {
   const m: Measure = {
     context: { tokens: 400_000, window: 1_000_000, percent: 40 },
     rateLimits: [{ kind: 'five_hour', percentUsed: 30, resetsAt: new Date(3_600_000).toISOString() }],
   }
   const t = { input: 10, output: 0, cacheRead: 90, cacheWrite: 0 }
-  for (const p of desktopPieces(m, t, 0)) {
-    expect(p.height).toBe(20)
-    expect(p.svg).toContain('height="20" viewBox="0 0 ')
-    // 所有带 y 的元素（文字基线、进度条、扫光、分隔线）都落在 0–20 之内
-    for (const [, y, h] of p.svg.matchAll(/<(?:rect|text)[^>]*?\sy="([\d.]+)"(?:[^>]*?height="([\d.]+)")?/g)) {
+  const svgs = desktopGroups(m, t, 0).flatMap(g => g.items.flatMap(it => (it.kind === 'svg' ? [it.svg] : [])))
+  for (const svg of [...svgs, SEP_SVG]) {
+    expect(svg).toContain('height="20" viewBox="0 0 ')
+    // 所有带 y 的元素（进度条、扫光、分隔线、刻度线）都落在 0–20 之内
+    for (const [, y, h] of svg.matchAll(/<rect[^>]*?\sy="([\d.]+)"(?:[^>]*?height="([\d.]+)")?/g)) {
       expect(Number(y)).toBeGreaterThanOrEqual(0)
       expect(Number(y) + Number(h ?? 0)).toBeLessThanOrEqual(20)
     }
-    for (const [, cy] of p.svg.matchAll(/cy="([\d.]+)"/g)) {
+    for (const [, cy] of svg.matchAll(/cy="([\d.]+)"/g)) {
       expect(Number(cy)).toBeGreaterThan(0)
       expect(Number(cy)).toBeLessThan(20)
     }
@@ -555,18 +583,36 @@ test('the default palette is Claude\'s: neutral figures, brand-colored graphics'
     rateLimits: [{ kind: 'five_hour', percentUsed: 40 }],
   }
   const t = { input: 10, output: 0, cacheRead: 90, cacheWrite: 0 }
-  const svg = desktopPieces(m, t, 0).map(p => p.svg).join('')
-  // 平时所有数字和标签都是中性文字，没有任何警示色
-  expect(svg).not.toContain('class="ink"')
-  expect(svg).toContain('class="num">5h<')
+  const gs = desktopGroups(m, t, 0)
+  // 平时所有文字都不指定颜色，用 Claude 的正文颜色
+  expect(gs.flatMap(spansOf).every(sp => sp.color === undefined)).toBe(true)
   // 图形用品牌色，浅色模式略压暗、深色模式略调亮
+  const svg = gs.map(svgsOf).join('')
   for (const hue of ['#6a9bcc', '#d97757', '#788c5d']) {
     expect(svg).toContain(`--gl:${lighten(hue, -0.12)};--gd:${lighten(hue, 0.12)}`)
   }
-  // 底轨统一暖灰，不再随各自颜色变化
+  // 底轨统一暖灰
   expect(svg).toContain('.track{fill:#b0aea5')
-  expect(svg).not.toContain('--h:')
-  // 深色模式下警示色调亮
-  const hot = desktopPieces({ ...m, rateLimits: [{ kind: 'five_hour', percentUsed: 90 }] }, t, 0)[0]?.svg ?? ''
-  expect(hot).toContain(`--l:#b8433b;--d:${lighten('#b8433b', 0.35)}`)
+  // 超过阈值时文字用警示色
+  const hot = desktopGroups({ ...m, rateLimits: [{ kind: 'five_hour', percentUsed: 90 }] }, t, 0)[0]
+  expect(spansOf(hot).map(sp => sp.color)).toEqual([warnText('#b8433b'), warnText('#b8433b')])
 })
+
+test('the warning text color reads on both a light and a dark band', async () => {
+  const lum = (hex: string) => {
+    const n = parseInt(hex.slice(1), 16)
+    const f = (v: number) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)
+    return 0.2126 * f((n >> 16) & 255) + 0.7152 * f((n >> 8) & 255) + 0.0722 * f(n & 255)
+  }
+  const contrast = (a: string, b: string) => {
+    const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p)
+    return (x! + 0.05) / (y! + 0.05)
+  }
+  // Text 只能给一个颜色：调到中间亮度，在 Claude 的浅色底框和深色底框上都看得清
+  for (const warn of ['#b8433b', '#ff0000', '#550000']) {
+    const c = warnText(warn)
+    expect(contrast(c, '#f0f0ef')).toBeGreaterThan(3.4)
+    expect(contrast(c, '#212121')).toBeGreaterThan(3.4)
+  }
+})
+

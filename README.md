@@ -170,7 +170,7 @@ Issues and pull requests are welcome.
 
 ## Screenshots
 
-These images are rendered from the SVG and terminal text the mod actually outputs, inside a frame styled after Claude Code; they are not screenshots of the app.
+These images are rendered from the SVG and terminal text the mod output in 1.9.0, inside a frame styled after Claude Code; they are not screenshots of the app. Since 2.0.0 the desktop text uses Claude's own font, so the letterforms differ slightly.
 
 **Desktop app, light mode**
 
@@ -185,6 +185,17 @@ These images are rendered from the SVG and terminal text the mod actually output
 <img src="docs/images/terminal.png" alt="usage-band in a terminal" width="760">
 
 ## Changelog
+
+### 2.0.0 (2026-10-04)
+
+On the desktop, Claude now draws the text, so it matches the app's font.
+
+- **Claude's own font**: text such as `5h`, `29%`, `3h41m` and `412K/1M` is no longer drawn inside the SVG; Claude draws it, in the app's Anthropic Sans and its text color, following light and dark mode. Text inside the SVG could not use the app's bundled font and showed in the system font, SF Pro.
+- **Only the graphics stay SVG**: bars, dots, icons and separators are unchanged, and the shine still runs in step.
+- **A mid-tone warning color for text**: app text takes a single color, so the warning red is set to a lightness that reads on both the light and the dark band (about 3.7:1).
+- **Accessibility**: the first graphic of each group carries that group's description (e.g. "5-hour limit 29% used") for screen readers.
+- Claude now sets the text size and weight; figures may shift by a pixel or two as they change.
+- Version 2.0.0, since the desktop band is drawn in a new way.
 
 ### 1.9.0 (2026-10-04)
 
