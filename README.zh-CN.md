@@ -122,13 +122,13 @@ claude plugin update usage-band@sorcerer-usage-band
 
 不需要任何设置。终端里的图标会自动选择：在 Ghostty 里用 Nerd Font 图标，在其他终端里用普通 Unicode 字符。桌面端的图标是自己画的。
 
-如果终端里的图标显示成方框，或者你在别的终端里也装了 Nerd Font，可以在 shell 配置文件（比如 `~/.zshrc`）里加一行，然后新开一个会话：
+如果终端里的图标显示成方框，或者你在别的终端里也装了 Nerd Font，可以在 shell 配置文件（比如 `~/.zshrc`）里加一行，然后新开一个终端窗口，在里面新开一个会话：
 
 ```bash
 export USAGE_BAND_ICONS=unicode   # auto（默认）· nerd · unicode · ascii
 ```
 
-**阈值和颜色**也可以改，但不是必须的，默认就是上面「功能」里说的效果。可以改的选项如下，表格下面是三种修改方式：
+**阈值和颜色**也可以改，但不是必须的，默认就是上面[功能](#功能)里说的效果。可以改的选项如下，表格下面是三种修改方式：
 
 | 选项 | 默认值 | 作用 |
 | --- | --- | --- |
@@ -153,7 +153,7 @@ export USAGE_BAND_ICONS=unicode   # auto（默认）· nerd · unicode · ascii
   echo '{"limitWarn":"70","colorWarn":"#ff0000"}' | claude plugin configure usage-band@sorcerer-usage-band --values-stdin
   ```
 
-这些值保存在 `settings.json` 的 `pluginConfigs["usage-band@sorcerer-usage-band"].options` 里，也可以直接编辑这个文件，改完同样要重启 Claude Code。
+这些值保存在用户级的 `settings.json`（`~/.claude/settings.json`）的 `pluginConfigs["usage-band@sorcerer-usage-band"].options` 里，也可以直接编辑这个文件，改完同样要重启 Claude Code。
 
 ## 数据说明
 

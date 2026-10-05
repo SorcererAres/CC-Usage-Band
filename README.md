@@ -120,7 +120,7 @@ The second is optional: it removes the marketplace too. In a system terminal, us
 
 Nothing to set up. The band picks its terminal icons by itself: Nerd Font icons in Ghostty, plain Unicode elsewhere. The desktop app draws its own icons.
 
-If your terminal shows boxes instead of icons, or you use a Nerd Font in another terminal, set `USAGE_BAND_ICONS` in your shell profile (e.g. `~/.zshrc`) and start a new session:
+If your terminal shows boxes instead of icons, or you use a Nerd Font in another terminal, set `USAGE_BAND_ICONS` in your shell profile (e.g. `~/.zshrc`), then open a new terminal window and start a new session there:
 
 ```bash
 export USAGE_BAND_ICONS=unicode   # auto (default) · nerd · unicode · ascii
@@ -151,7 +151,7 @@ Thresholds run from 0 to 100. Colors are `#rrggbb` or `#rgb`; an invalid one fal
   echo '{"limitWarn":"70","colorWarn":"#ff0000"}' | claude plugin configure usage-band@sorcerer-usage-band --values-stdin
   ```
 
-The values live in `settings.json` under `pluginConfigs["usage-band@sorcerer-usage-band"].options`, which you can also edit by hand; restart Claude Code after that too.
+The values live in your user `settings.json` (`~/.claude/settings.json`) under `pluginConfigs["usage-band@sorcerer-usage-band"].options`, which you can also edit by hand; restart Claude Code after that too.
 
 ## What the numbers mean
 

@@ -50,9 +50,9 @@ claude plugin update usage-band@sorcerer-usage-band
 
 ## Settings
 
-Terminal icons are picked automatically: Nerd Font icons in Ghostty, plain Unicode elsewhere. To override, set `USAGE_BAND_ICONS` in your shell profile to `auto`, `nerd`, `unicode` or `ascii`, e.g. `export USAGE_BAND_ICONS=unicode`. Ghostty is recognized by `TERM_PROGRAM`, which tmux and SSH change or drop, so set `nerd` there to keep the Nerd Font icons. The VS Code extension panel always uses Unicode icons.
+Terminal icons are picked automatically: Nerd Font icons in Ghostty, plain Unicode elsewhere. To override, set `USAGE_BAND_ICONS` in your shell profile to `auto`, `nerd`, `unicode` or `ascii`, e.g. `export USAGE_BAND_ICONS=unicode`, then open a new terminal window and start a new session there. Ghostty is recognized by `TERM_PROGRAM`, which tmux and SSH change or drop, so set `nerd` there to keep the Nerd Font icons. The VS Code extension panel always uses Unicode icons.
 
-The warning thresholds and the colors are plugin options: `limitWarn` (default 80), `contextWarn` (80), `cacheWarn` (50), and `colorFiveHour`, `colorSevenDay`, `colorContext`, `colorCache`, `colorWarn` as `#rrggbb` or `#rgb` hex colors. An invalid value falls back to its default. Set them in `/config` or with `/plugin configure usage-band@sorcerer-usage-band`; in a system terminal, pipe them as JSON to `claude plugin configure usage-band@sorcerer-usage-band --values-stdin` and restart Claude Code.
+The warning thresholds and the colors are plugin options: `limitWarn` (default 80), `contextWarn` (80), `cacheWarn` (50), and `colorFiveHour`, `colorSevenDay`, `colorContext`, `colorCache`, `colorWarn` as `#rrggbb` or `#rgb` hex colors. Thresholds run from 0 to 100; an invalid color falls back to its default. Set them in `/config` or with `/plugin configure usage-band@sorcerer-usage-band`; in a system terminal, pipe them as JSON, every value as a string, to `claude plugin configure usage-band@sorcerer-usage-band --values-stdin` and restart Claude Code.
 
 Run `/usage-band-preview` to see the band in every terminal style side by side, including how a 256-color terminal shows the colors.
 
