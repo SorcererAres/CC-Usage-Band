@@ -1,15 +1,21 @@
+// usage-band：在输入框上方显示 5h / 7d 额度、上下文窗口和缓存命中率。
+// 整个模组只有这一个文件：前面是配色、读数的格式化、终端与桌面端的排版，
+// 最后的 register 把它们接到引擎的事件上。
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, PluginOptions, Register } from 'claude-code'
 
 import type { Limit, Measure, Style, TurnTokens } from '../types'
 
+// 模组保存在会话里的状态，类型契约见 ../types/index.d.ts
 const measure = atom({ plugin: 'usage-band', key: 'measure' } as const, null)
 const turn = atom({ plugin: 'usage-band', key: 'turn' } as const, null)
 const now = atom({ plugin: 'usage-band', key: 'now' } as const, 0)
 const phase = atom({ plugin: 'usage-band', key: 'phase' } as const, 0)
 const style = atom({ plugin: 'usage-band', key: 'style' } as const, 'unicode')
 
-// One hue per metric; the warning color takes over only when a metric is in trouble.
+// ---- 配色与阈值
+
+// 每项指标一种颜色；只有指标需要注意时才换成警示色。
 // 默认配色取自 Claude 的品牌色：额度用蓝（7d 稍深）、上下文用 Claude 橙、缓存用橄榄绿，
 // 警示用更深的红，与橙色拉开距离。数字与标签保持中性，只有图形带颜色
 // 颜色与阈值：默认值如下，可在 /config 里按插件的 userConfig 字段逐项改
@@ -61,29 +67,35 @@ export const themeFrom = (o: PluginOptions = {}): Theme => {
     cacheWarn: parsePercent(o.cacheWarn, d.cacheWarn),
   }
 }
-const FRAME_MS = 200
-const PREVIEW = 'usage-band-preview'
 
+// ---- 终端图标
+
+// 三套图标与进度条字符：Nerd Font、普通 Unicode、纯 ASCII
 export const GLYPHS: Record<Style, { ctx: string; hit: string; fill: string; track: string }> = {
   nerd: { ctx: '\u{F0328} ', hit: '\u{F04FE} ', fill: '■', track: '■' },
   unicode: { ctx: '≡ ', hit: '● ', fill: '■', track: '■' },
   ascii: { ctx: 'ctx ', hit: 'hit ', fill: '#', track: '-' },
 }
 
-// Terminals known to ship Nerd Font symbols without the user installing a font
+// 自带 Nerd Font 符号、不用用户另装字体的终端
 const NERD_BUILTIN = new Set(['ghostty'])
 
+// 图标样式：手动设置优先；auto 时只有自带 Nerd Font 的终端用 nerd，其余用 unicode
 export const detectStyle = (setting: string, termProgram: string | undefined): Style => {
   if (setting === 'nerd' || setting === 'unicode' || setting === 'ascii') return setting
   return NERD_BUILTIN.has((termProgram ?? '').toLowerCase()) ? 'nerd' : 'unicode'
 }
 
+// ---- 读数
+
+// token 数的短写法：950、15.6K、100K、1M
 export const fmtTokens = (n: number): string => {
   if (n >= 1_000_000) return `${+(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1)}M`
   if (n >= 1_000) return `${+(n / 1_000).toFixed(n >= 100_000 ? 0 : 1)}K`
   return String(n)
 }
 
+// 距重置还有多久：42m、3h14m、5d3h
 export const fmtLeft = (ms: number): string => {
   const mins = Math.max(0, Math.round(ms / 60_000))
   const d = Math.floor(mins / 1440)
@@ -94,6 +106,7 @@ export const fmtLeft = (ms: number): string => {
   return `${m}m`
 }
 
+// 缓存命中率：上一轮的缓存读取量占全部输入（未缓存 + 缓存读取 + 缓存写入）的百分比
 export const hitRate = (t: TurnTokens): number | null => {
   const total = t.input + t.cacheRead + t.cacheWrite
   // 总量为 0 或有字段缺失（NaN）时都不显示，避免出现 NaN%
@@ -113,7 +126,9 @@ export const limitNow = (l: Limit, at: number): { pct: number; left: string } =>
 export const ctxPercent = (c: Measure['context']): number =>
   c.percent ?? (c.window > 0 ? ((c.tokens ?? 0) / c.window) * 100 : 0)
 
-// Blend a #rrggbb color toward white (t > 0) or black (t < 0) by |t|
+// ---- 颜色运算
+
+// 把 #rrggbb 颜色按 |t| 的比例混向白色（t > 0）或黑色（t < 0）
 export const lighten = (hex: string, t: number): string => {
   const n = parseInt(hex.slice(1), 16)
   const target = t >= 0 ? 255 : 0
@@ -121,7 +136,7 @@ export const lighten = (hex: string, t: number): string => {
   return `#${ch((n >> 16) & 255)}${ch((n >> 8) & 255)}${ch(n & 255)}`
 }
 
-// Nearest xterm-256 color, to preview how a 256-color terminal shows the band
+// 最接近的 xterm 256 色，用来预览这一行在 256 色终端里的样子
 export const to256 = (hex: string): string => {
   const n = parseInt(hex.slice(1), 16)
   const rgb = [(n >> 16) & 255, (n >> 8) & 255, n & 255] as const
@@ -135,11 +150,20 @@ export const to256 = (hex: string): string => {
   return `#${pick.map(v => v.toString(16).padStart(2, '0')).join('')}`
 }
 
+// ---- 终端：一行字符
+
+// 终端动画每帧的间隔（毫秒）
+const FRAME_MS = 200
+
+// 一段文字：color 缺省时用终端前景色；dim 为次要文字（倒计时、/1M）
 export type Span = { text: string; color?: string; dim?: boolean }
+// 这一行用哪套图标、按哪种色深来画
 export type Look = { style: Style; colors: 'true' | '256' }
 
+// 组与组之间的间隔
 const SEP: Span = { text: '  ' }
 
+// 这一行有多少个字符
 export const width = (spans: Span[]) => spans.reduce((n, s) => n + [...s.text].length, 0)
 
 // 东亚「宽度不确定」（Ambiguous）字符：这一行用到的 · ≡ ■ ●，以及 Nerd Font 图标所在的私用区。
@@ -160,12 +184,11 @@ const cellsOf = (ch: string) => {
 export const columns = (spans: Span[]) =>
   spans.reduce((n, s) => n + [...s.text].reduce((w, c) => w + cellsOf(c), 0), 0)
 
-// A bar whose filled part runs from a deep shade of its color to a bright one,
-// with a soft highlight sweeping left to right on top
+// 进度条：已填充的部分从深到浅渐变，上面叠一道从左向右移动的柔和扫光
 export const bar = (pct: number, cells: number, color: string, frame: number, s: Style = 'unicode'): Span[] => {
   const g = GLYPHS[s]
   const filled = Math.max(pct > 0 ? 1 : 0, Math.min(cells, Math.round((pct / 100) * cells)))
-  // Same period for every bar, so all highlights travel in step
+  // 所有进度条用同一个周期，扫光同步移动
   const pos = frame % (cells + 5)
   const spans: Span[] = []
   for (let i = 0; i < filled; i++) {
@@ -177,7 +200,7 @@ export const bar = (pct: number, cells: number, color: string, frame: number, s:
   return spans
 }
 
-// detail 2: bars + countdowns; 1: no bars; 0: bare numbers
+// detail 2：进度条加倒计时；1：去掉进度条；0：只剩数字
 export const layout = (
   m: Measure | null,
   t: TurnTokens | null,
@@ -249,8 +272,9 @@ const hasShine = (m: Measure | null, at: number, detail: 0 | 1 | 2) =>
   detail === 2 &&
   (m?.rateLimits ?? []).some(l => (l.kind === 'five_hour' || l.kind === 'seven_day') && limitNow(l, at).pct > 0)
 
+// ---- 桌面端
 
-// ---- Desktop: 文字交给 Claude 自己画（Text 元素），自动用上界面的 Anthropic Sans 和正文颜色；
+// 文字交给 Claude 自己画（Text 元素），自动用上界面的 Anthropic Sans 和正文颜色；
 // 图形（进度条、点阵、图标、分隔线）仍是 SVG 图片。SVG 以图片形式插入，拿不到应用加载的网页字体，
 // 所以文字不能放在 SVG 里。图片原地重绘，不会像交互式（框架内）SVG 那样每次重绘都闪一下。
 
@@ -263,9 +287,20 @@ const CAP = { top: MID - 5, h: 10 }
 
 // 估宽用的字宽（em，按 13px 的界面字体估算，Anthropic Sans 与 SF Pro 相差不大）。
 // 只用于分配伸缩宽度，误差由外层 space-between 的间距吸收
-const ADVANCE: Record<string, number> = { h: 0.58, d: 0.6, m: 0.9, K: 0.64, M: 0.84, '%': 0.84, '/': 0.36, '.': 0.27, ' ': 0.26 }
+const ADVANCE: Record<string, number> = {
+  h: 0.58,
+  d: 0.6,
+  m: 0.9,
+  K: 0.64,
+  M: 0.84,
+  '%': 0.84,
+  '/': 0.36,
+  '.': 0.27,
+  ' ': 0.26,
+}
 const FONT_PX = 13
-const textW = (v: string) => [...v].reduce((w, c) => w + (c >= '0' && c <= '9' ? 0.62 : (ADVANCE[c] ?? 0.6)), 0) * FONT_PX
+const textW = (v: string) =>
+  [...v].reduce((w, c) => w + (c >= '0' && c <= '9' ? 0.62 : (ADVANCE[c] ?? 0.6)), 0) * FONT_PX
 
 // 扫光动画的起点占位符：去重比较、测试里换成 0s，真正绘制时换成按时钟对齐的相位
 const BEGIN = '{{shine-begin}}'
@@ -274,8 +309,8 @@ export const SHINE_MS = 2600
 // 图形的颜色：浅色模式略压暗、深色模式略调亮，两种底色上都看得清。元素用 class="gf"（填充）或 "gs"（描边）取 --g
 const paint = (color: string) => `style="--gl:${lighten(color, -0.12)};--gd:${lighten(color, 0.12)}"`
 
-// An image takes its color scheme from the app; declaring both schemes lets it follow the app and
-// stay transparent (a frame whose scheme differs would get an opaque canvas behind it).
+// 图片的配色方案取自应用；同时声明浅色和深色两种方案，图片才会跟随应用并保持透明
+// （方案与应用不一致的框架，背后会垫上一层不透明的画布）。
 const SVG_HEAD =
   `<style>` +
   `:root{color-scheme:light dark;background:transparent}` +
@@ -287,6 +322,7 @@ const SVG_HEAD =
   `<defs><linearGradient id="shine" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/>` +
   `<stop offset=".5" stop-color="#fff" stop-opacity=".8"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>`
 
+// 把图形包成一张完整的 SVG 图片
 const wrap = (width: number, body: string) =>
   `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${D.h}" viewBox="0 0 ${width} ${D.h}" style="color-scheme:light dark;background:transparent">${SVG_HEAD}${body}</svg>`
 
@@ -326,7 +362,15 @@ const group = (key: string, alt: string, items: DeskItem[]): DeskGroup => ({
 })
 
 // 5h ▬▬▬▬▬▬──── 69% │ 1h31m：标签、进度条、读数，再是重置倒计时
-const limitGroup = (key: string, label: string, l: Limit, hue: string, at: number, theme: Theme, barW: number): DeskGroup => {
+const limitGroup = (
+  key: string,
+  label: string,
+  l: Limit,
+  hue: string,
+  at: number,
+  theme: Theme,
+  barW: number,
+): DeskGroup => {
   const { pct, left } = limitNow(l, at)
   const warn = pct >= theme.limitWarn ? theme.warn : undefined
   const color = warn ?? hue
@@ -344,22 +388,25 @@ const limitGroup = (key: string, label: string, l: Limit, hue: string, at: numbe
   )
   const tc = warn && warnText(warn)
   const items = [txt({ text: label, color: tc }), bar, txt({ text: `${pct}%`, color: tc })]
-  if (left) items.push(pic(1, `<rect x="0" y="${CAP.top}" width="1" height="${CAP.h}" class="rule"/>`), txt({ text: left, dim: true }))
+  if (left) {
+    const rule = pic(1, `<rect x="0" y="${CAP.top}" width="1" height="${CAP.h}" class="rule"/>`)
+    items.push(rule, txt({ text: left, dim: true }))
+  }
   return group(key, `${key === '5h' ? '5-hour' : '7-day'} limit ${pct}% used`, items)
 }
 
-// Three stacked sheets: the context window
+// 三层叠放的薄片：上下文窗口
 const layersIcon = () =>
   `<g fill="none" class="gs" stroke-width="1.2" stroke-linejoin="round">` +
   `<path d="M5 0.6 L9.4 2.8 L5 5 L0.6 2.8 Z" class="gf" fill-opacity="0.25"/>` +
   `<path d="M0.6 5.2 L5 7.4 L9.4 5.2"/><path d="M0.6 7.2 L5 9.4 L9.4 7.2"/></g>`
 
-// A target: how much of the prompt the cache hit
+// 靶心：提示词有多少命中了缓存
 const targetIcon = () =>
   `<g fill="none" class="gs" stroke-width="1.2">` +
   `<circle cx="5" cy="5" r="4.4"/><circle cx="5" cy="5" r="2.1"/><circle cx="5" cy="5" r="0.7" class="gf"/></g>`
 
-// Icons are drawn in a CAP.h square, outer stroke edge included
+// 图标画在边长 CAP.h 的方格里，描边的外沿也算在内
 const ICON = CAP.h
 const icon = (draw: () => string, color: string, x = 0) =>
   `<g transform="translate(${x} ${CAP.top})" class="g" ${paint(color)}>${draw()}</g>`
@@ -367,10 +414,10 @@ const icon = (draw: () => string, color: string, x = 0) =>
 // 只剩上下文一组时，左侧显示它的名称：和右侧的点阵同属一个模块，上下文超过阈值时一起变成警示色
 export const CTX_LABEL = 'Context'
 
-// Context as a 2-row dot matrix (2×10 by default: one dot per 1/20 of the window), filling the top
-// row left to right before the bottom one, with the same shine over the lit dots.
+// 上下文画成两行点阵（默认 2×10，每个点代表窗口的 1/20）：先从左到右填满上排，再填下排，
+// 点亮的点上叠着同一道扫光。
 // 桌面端变宽时列数分档增加（点的大小和间距不变），每个点代表的比例相应变小
-// Rows sit so the dots' outer edges meet the CAP band: CAP.top + r and CAP.top + CAP.h - r
+// 两排的位置让点的外沿正好贴齐 CAP 区域的上下边：CAP.top + r 与 CAP.top + CAP.h - r
 const DOTS = { cols: 10, pitch: 5, r: 1.6, rows: [CAP.top + 1.6, CAP.top + CAP.h - 1.6] }
 const ctxGroup = (hue: string, tokens: number, window: number, pct: number, cols: number, warn?: string): DeskGroup => {
   const color = warn ?? hue
@@ -485,9 +532,10 @@ export const fitStretch = (
   }
 }
 
-// The desktop app redraws the band, and its frame blinks, on every write a drawing reads. So a
-// reading is only written when it changes what the band shows: a new token count that rounds to
-// the same figure, or a clock tick that leaves every countdown as it was, writes nothing.
+// ---- 状态写入
+
+// 绘制读取的值每写入一次，桌面端就重绘这一行，外框随之闪一下。所以读数只在会改变显示内容时
+// 才写入：新的 token 数取整后还是同一个数字，或者时钟走了一格而所有倒计时都没变，就什么也不写。
 // 比较时要用这次加载的配色与阈值：自定义阈值下跨过阈值只改颜色，用默认值比较会漏掉这次变化
 const shown = (m: Measure | null, t: TurnTokens | null, at: number, theme: Theme) =>
   JSON.stringify(desktopGroups(m, t, at, theme))
@@ -511,7 +559,11 @@ const setTurn = async ($: EngineInterface, next: TurnTokens, theme: Theme) => {
   await update($, turn, () => next)
 }
 
-// Shown by the preview when the session has no reading yet
+// ---- 预览命令与欢迎提示
+
+const PREVIEW = 'usage-band-preview'
+
+// 会话里还没有读数时，预览用这组示例数据
 const SAMPLE_MEASURE: Measure = {
   context: { tokens: 176_000, window: 1_000_000, percent: 18 },
   rateLimits: [
@@ -521,6 +573,7 @@ const SAMPLE_MEASURE: Measure = {
 }
 const SAMPLE_TURN: TurnTokens = { input: 900, output: 2_000, cacheRead: 170_000, cacheWrite: 1_000 }
 
+// 预览里逐个画出的终端样式
 const PROFILES: { name: string; look: Look }[] = [
   { name: 'Ghostty', look: { style: 'nerd', colors: 'true' } },
   { name: 'iTerm2 / Warp / WezTerm / kitty', look: { style: 'unicode', colors: 'true' } },
@@ -528,20 +581,23 @@ const PROFILES: { name: string; look: Look }[] = [
   { name: 'ascii fallback', look: { style: 'ascii', colors: '256' } },
 ]
 
-// Icon set override, read from USAGE_BAND_ICONS. It is an environment variable rather than a
-// plugin option so a fresh install has nothing to configure.
+// 图标样式的手动设置，读取自 USAGE_BAND_ICONS。用环境变量而不是插件选项，
+// 这样新装的用户没有任何需要配置的东西。
 const ICONS_ENV = 'USAGE_BAND_ICONS'
 
+// 安装后第一次加载时显示的欢迎提示
 export const WELCOME =
   'usage-band is on: your 5h and 7d limits, context window and cache hit rate now show above the prompt. ' +
   'The limits fill in after Claude’s first reply.'
+
+// ---- 注册
 
 export const register: Register = (on, options) => {
   // 选项在 /config 里改动时，模组会带着新选项整体重新加载，所以这里读一次即可
   const theme = themeFrom(options)
   let setting = 'auto'
-  // The terminal animates by redrawing; started by its first draw, so a desktop-only session
-  // never runs it. A reload drops the timer and this flag together.
+  // 终端靠重绘来播放动画；计时器由第一次绘制启动，所以只用桌面端的会话不会运行它。
+  // 重新加载时计时器和这个标记一起丢弃。
   let isAnimating = false
   // 上一次终端绘制里是否有正在扫光的进度条。帧计数只在它为真时推进一格，并由下一次绘制重新置位：
   // 进度条不在屏上（问卷占位、窄屏去掉了进度条、没有额度数据）时帧计数就停下，不再每秒重绘 5 次；
@@ -562,7 +618,7 @@ export const register: Register = (on, options) => {
       name: PREVIEW,
       description: 'Preview how the usage band looks in different terminals',
     })
-    // One welcome after install, so a new user knows what appeared above the prompt
+    // 安装后只欢迎一次，让新用户知道输入框上方多出来的是什么
     if ((await $.store.get('welcomed')) !== true) {
       await $.store.set('welcomed', true)
       $.ui.toast(WELCOME, { timeoutMs: 12_000 })
@@ -587,7 +643,7 @@ export const register: Register = (on, options) => {
   })
 
   on('turn.complete', async ($, e, next) => {
-    // Main loop only; subagent runs raise their own turn.complete
+    // 只统计主循环；子代理运行时会各自触发 turn.complete
     if (e.agentId === undefined && e.usage) {
       const u = e.usage
       await setTurn($, {
@@ -637,7 +693,7 @@ export const register: Register = (on, options) => {
     const at = await read($, now)
     if (e.props.hasSurvey || (m === null && t === null)) return next(e)
 
-    // Desktop and mobile animate inside the SVG, so they never read the frame counter
+    // 桌面端和移动端的动画在 SVG 内部完成，所以不读取帧计数
     if (e.surface === 'desktop' || e.surface === 'mobile') {
       const { Box, Svg, Text } = $.ui.resolve(e)
       const stretch = fitStretch(m, t, at, theme, e.props.bodyColumns)
@@ -676,7 +732,9 @@ export const register: Register = (on, options) => {
           paddingX={1}
         >
           {groups.flatMap((g, i) => [
-            ...(needsSep(groups, i) ? [<Svg key={`sep-${g.key}`} source={SEP_SVG} alt="" width={1} height={DESK_H} />] : []),
+            ...(needsSep(groups, i)
+              ? [<Svg key={`sep-${g.key}`} source={SEP_SVG} alt="" width={1} height={DESK_H} />]
+              : []),
             <Box key={g.key} flexDirection="row" alignItems="center" columnGap={1}>
               {g.items.map((it, j) =>
                 item(it, `${g.key}-${j}`, j === g.items.findIndex(x => x.kind === 'svg') ? g.alt : ''),
@@ -696,7 +754,7 @@ export const register: Register = (on, options) => {
       })
     }
     const frame = await read($, phase)
-    // The terminal font decides icons; other surfaces (vscode) get the plain set
+    // 图标取决于终端的字体；其他界面（vscode）一律用普通字符
     const s = e.surface === 'terminal' ? await read($, style) : 'unicode'
     const { spans, detail } = fit(m, t, at, e.props.bodyColumns - 2, frame, { style: s, colors: 'true' }, theme)
     isShining = hasShine(m, at, detail)

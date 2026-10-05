@@ -1,32 +1,32 @@
 import { expect, mock, test } from 'claude-code/testing'
 
 import {
+  BAR,
+  DEFAULT_STRETCH,
+  DEFAULT_THEME,
+  DOT_STEPS,
+  PX_PER_COL,
+  SEP_SVG,
   bar,
   columns,
   ctxPercent,
   desktopGroups,
-  SEP_SVG,
-  needsSep,
-  warnText,
-  fitStretch,
-  PX_PER_COL,
-  BAR,
-  DOT_STEPS,
-  DEFAULT_STRETCH,
-  shineBegin,
   detectStyle,
   fit,
+  fitStretch,
   fmtLeft,
   fmtTokens,
   hitRate,
   layout,
-  limitNow,
   lighten,
+  limitNow,
+  needsSep,
   parseColor,
   parsePercent,
+  shineBegin,
   themeFrom,
-  DEFAULT_THEME,
   to256,
+  warnText,
   width,
 } from '../hooks/register'
 import type { DeskGroup } from '../hooks/register'
@@ -38,9 +38,17 @@ const spansOf = (g?: DeskGroup) => (g?.items ?? []).flatMap(it => (it.kind === '
 const wordsOf = (g?: DeskGroup) => spansOf(g).map(s => s.text)
 const groupOf = (gs: DeskGroup[], key: string) => gs.find(g => g.key === key)
 
+// 点阵图里点亮的点数（裁剪路径里的圆），与图里所有的圆（点亮的点在裁剪路径里又画了一遍）
+const litDots = (svg: string) => (svg.match(/<clipPath id="c">(.*?)<\/clipPath>/)?.[1]?.match(/<circle/g) ?? []).length
+const allCircles = (svg: string) => (svg.match(/<circle [^>]*r="1.6"/g) ?? []).length
+
+// 颜色的粗略亮度（RGB 三个分量之和），只用来比较明暗
+const brightness = (hex = '#000000') => [1, 3, 5].reduce((n, i) => n + parseInt(hex.slice(i, i + 2), 16), 0)
+
+// 挂载这一行用的参数
 const BAND = {
   component: 'AbovePrompt',
-  // The mount fills scroll and view; the band reads none of them
+  // 挂载时会补上 scroll 和 view；这一行两者都不读取
   props: { hasSurvey: false, isWorking: false, maxRows: 4, bodyColumns: 140 } as never,
 } as const
 
@@ -50,7 +58,7 @@ test('formats tokens, countdowns and hit rate', async () => {
   expect(fmtTokens(100_000)).toBe('100K')
   expect(fmtTokens(1_000_000)).toBe('1M')
   expect(fmtLeft((2 * 60 + 40) * 60_000)).toBe('2h40m')
-  expect(fmtLeft((31 * 60) * 60_000)).toBe('1d7h')
+  expect(fmtLeft(31 * 60 * 60_000)).toBe('1d7h')
   expect(hitRate({ input: 50, output: 10, cacheRead: 900, cacheWrite: 50 })).toBe(90)
   expect(hitRate({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 })).toBe(null)
   // 字段缺失算出 NaN 时不显示，而不是画出 NaN%
@@ -164,7 +172,10 @@ test('a limit, the context or the cache turns red past its threshold', async () 
   })
   expect(colorOf(lim(80), null, '80%')).toBe(RED)
   expect(colorOf(lim(79), null, '79%')).not.toBe(RED)
-  const ctx = (percent: number): Measure => ({ context: { tokens: percent * 1_000, window: 100_000, percent }, rateLimits: [] })
+  const ctx = (percent: number): Measure => ({
+    context: { tokens: percent * 1_000, window: 100_000, percent },
+    rateLimits: [],
+  })
   expect(colorOf(ctx(80), null, '80K')).toBe(RED)
   expect(colorOf(ctx(79), null, '79K')).not.toBe(RED)
   const turn = (cacheRead: number) => ({ input: 100 - cacheRead, output: 0, cacheRead, cacheWrite: 0 })
@@ -203,18 +214,17 @@ test('a window past its reset shows 0% with no countdown until the next reading'
 
 test('the bar highlight moves left to right and keeps the bar width', async () => {
   const at = (f: number) => bar(50, 8, '#5cc4d6', f)
-  const lum = (hex = '#000000') => [1, 3, 5].reduce((n, i) => n + parseInt(hex.slice(i, i + 2), 16), 0)
-  // 50% of 8 cells fills 4; frames 4..12 put the glow past the fill, so frame 7 has none
-  const plain = at(7).map(s => lum(s.color))
-  // The glow sits one cell further right each frame
+  // 8 格的 50% 填 4 格；第 7 帧时扫光已经移到这 4 格之外，用作没有扫光的对照
+  const plain = at(7).map(s => brightness(s.color))
+  // 扫光每一帧向右移一格
   const glowAt = (f: number) => {
-    const lift = at(f).map((s, i) => lum(s.color) - plain[i]!)
+    const lift = at(f).map((s, i) => brightness(s.color) - plain[i]!)
     return lift.indexOf(Math.max(...lift))
   }
   expect(glowAt(0)).toBe(0)
   expect(glowAt(2)).toBe(2)
   expect(glowAt(3)).toBe(3)
-  // Gradient: without a glow the bar brightens left to right
+  // 渐变：没有扫光时进度条从左到右变亮
   expect(plain[0]! < plain[3]!).toBe(true)
   for (const f of [0, 3, 7, 20]) expect(width(at(f))).toBe(8)
 })
@@ -250,25 +260,24 @@ test('preview command draws every terminal profile', async ($, on) => {
 })
 
 test('bars of different fill keep their highlights in step', async () => {
-  const lum = (hex = '#000000') => [1, 3, 5].reduce((n, i) => n + parseInt(hex.slice(i, i + 2), 16), 0)
   const glowAt = (pct: number, f: number) => {
-    const plain = bar(pct, 8, '#5cc4d6', 12).map(s => lum(s.color))
-    const lift = bar(pct, 8, '#5cc4d6', f).map((s, i) => lum(s.color) - plain[i]!)
+    const plain = bar(pct, 8, '#5cc4d6', 12).map(s => brightness(s.color))
+    const lift = bar(pct, 8, '#5cc4d6', f).map((s, i) => brightness(s.color) - plain[i]!)
     return lift.indexOf(Math.max(...lift))
   }
   for (const f of [0, 1, 2, 3, 13, 15]) expect(glowAt(50, f)).toBe(glowAt(90, f))
 })
 
 test('desktop context is a 2×10 dot matrix, top row first', async () => {
-  const svgFor = (pct: number) =>
-    svgsOf(groupOf(desktopGroups({ context: { tokens: pct * 10_000, window: 1_000_000, percent: pct }, rateLimits: [] }, null, 0), 'ctx'))
-  const lit = (svg: string) => (svg.match(/<clipPath id="c">(.*?)<\/clipPath>/)?.[1]?.match(/<circle/g) ?? []).length
-  const all = (svg: string) => (svg.match(/<circle [^>]*r="1.6"/g) ?? []).length
-  expect(all(svgFor(35))).toBe(20 + 7)
-  expect(lit(svgFor(35))).toBe(7)
-  expect(lit(svgFor(0))).toBe(0)
-  expect(lit(svgFor(100))).toBe(20)
-  // 60% fills the whole top row and two dots of the bottom one
+  const svgFor = (pct: number) => {
+    const m: Measure = { context: { tokens: pct * 10_000, window: 1_000_000, percent: pct }, rateLimits: [] }
+    return svgsOf(groupOf(desktopGroups(m, null, 0), 'ctx'))
+  }
+  expect(allCircles(svgFor(35))).toBe(20 + 7)
+  expect(litDots(svgFor(35))).toBe(7)
+  expect(litDots(svgFor(0))).toBe(0)
+  expect(litDots(svgFor(100))).toBe(20)
+  // 60%：填满整个上排，下排再亮两个点
   const rows = (svgFor(60).match(/<clipPath id="c">(.*?)<\/clipPath>/)?.[1] ?? '').match(/cy="[\d.]+"/g) ?? []
   expect(rows.filter(r => r === 'cy="6.6"').length).toBe(10)
   expect(rows.filter(r => r === 'cy="13.4"').length).toBe(2)
@@ -329,10 +338,12 @@ test('a redraw that changes nothing visible is not written', async () => {
   const at = Date.parse('2026-10-03T12:00:00Z')
   const m: Measure = {
     context: { tokens: 100_000, window: 1_000_000, percent: 10 },
-    rateLimits: [{ kind: 'five_hour', percentUsed: 20, resetsAt: new Date(at + 3 * 3_600_000 + 30 * 60_000).toISOString() }],
+    rateLimits: [
+      { kind: 'five_hour', percentUsed: 20, resetsAt: new Date(at + 3 * 3_600_000 + 30 * 60_000).toISOString() },
+    ],
   }
   const shown = (mm: Measure, when: number) => JSON.stringify(desktopGroups(mm, null, when))
-  // 3h30m and 3h30m less 20 seconds both read 3h30m; 100,040 tokens still reads 100K
+  // 剩 3h30m 和再少 20 秒时都显示 3h30m；100,040 个 token 仍显示 100K
   expect(shown(m, at)).toBe(shown(m, at + 20_000))
   expect(shown(m, at)).toBe(shown({ ...m, context: { ...m.context, tokens: 100_040 } }, at))
   // 读数真的变了才算变
@@ -360,7 +371,13 @@ test('options parse into a theme; bad values fall back to the defaults', async (
 })
 
 test('custom thresholds and colors decide when and how a metric warns', async () => {
-  const theme = themeFrom({ limitWarn: 60, contextWarn: 30, cacheWarn: 95, colorWarn: '#ff0000', colorSevenDay: '#00ff00' })
+  const theme = themeFrom({
+    limitWarn: 60,
+    contextWarn: 30,
+    cacheWarn: 95,
+    colorWarn: '#ff0000',
+    colorSevenDay: '#00ff00',
+  })
   const m: Measure = {
     context: { tokens: 300_000, window: 1_000_000, percent: 30 },
     rateLimits: [
@@ -426,12 +443,13 @@ test('desktop graphics start every shine at the same phase of one clock', async 
   // 两条进度条和上下文点阵，三处扫光同一个起点
   expect([...svg.matchAll(/begin="([^"]+)"/g)].map(x => x[1])).toEqual(['-1.30s', '-1.30s', '-1.30s'])
   // 每张图都是完整的 SVG 文档，带自己的样式（深色模式）和渐变定义
-  for (const g of gs)
-    for (const it of g.items)
-      if (it.kind === 'svg') {
-        expect(it.svg.startsWith('<svg')).toBe(true)
-        expect(it.svg).toContain('prefers-color-scheme:dark')
-      }
+  for (const g of gs) {
+    for (const it of g.items) {
+      if (it.kind !== 'svg') continue
+      expect(it.svg.startsWith('<svg')).toBe(true)
+      expect(it.svg).toContain('prefers-color-scheme:dark')
+    }
+  }
   // 比较用的版本里没有残留占位符
   expect(JSON.stringify(desktopGroups(m, null, 0))).not.toContain('shine-begin')
 })
@@ -474,13 +492,12 @@ test('desktop bars and the context dots stretch with the band width, within boun
 
 test('a wider dot matrix keeps two rows and the same fill ratio', async () => {
   const m: Measure = { context: { tokens: 500_000, window: 1_000_000, percent: 50 }, rateLimits: [] }
-  const ctx = (dotCols: number) => svgsOf(groupOf(desktopGroups(m, null, 0, DEFAULT_THEME, { barW: 76, dotCols }), 'ctx'))
-  const lit = (svg: string) => (svg.match(/<clipPath id="c">(.*?)<\/clipPath>/)?.[1]?.match(/<circle/g) ?? []).length
-  const all = (svg: string) => (svg.match(/<circle [^>]*r="1.6"/g) ?? []).length
+  const ctx = (dotCols: number) =>
+    svgsOf(groupOf(desktopGroups(m, null, 0, DEFAULT_THEME, { barW: 76, dotCols }), 'ctx'))
   // 50%：10 列点亮 10 个，30 列点亮 30 个（都是整个上排）
-  expect(lit(ctx(10))).toBe(10)
-  expect(lit(ctx(30))).toBe(30)
-  expect(all(ctx(30))).toBe(60 + 30)
+  expect(litDots(ctx(10))).toBe(10)
+  expect(litDots(ctx(30))).toBe(30)
+  expect(allCircles(ctx(30))).toBe(60 + 30)
   const rows = new Set(ctx(30).match(/cy="[\d.]+"/g))
   expect(rows.size).toBe(2)
 })
@@ -535,7 +552,7 @@ test('a lone context group is named on the left, its dots on the right', async (
   const svgs = await ui.findAll({ type: 'Svg' })
   expect(svgs.length).toBe(1)
   // 点阵 2×50，每点 1%：63% 点亮 63 个
-  expect((String(svgs[0]?.props.source).match(/<circle [^>]*r="1.6"/g) ?? []).length).toBe(50 * 2 + 63)
+  expect(allCircles(String(svgs[0]?.props.source))).toBe(50 * 2 + 63)
   await ui.unmount()
 })
 
@@ -575,7 +592,7 @@ test('desktop graphics are 20px tall and everything sits inside them', async () 
   }
 })
 
-test('the default palette is Claude\'s: neutral figures, brand-colored graphics', async () => {
+test("the default palette is Claude's: neutral figures, brand-colored graphics", async () => {
   expect(DEFAULT_THEME.hue).toEqual({ five: '#6a9bcc', seven: '#4f7aa6', ctx: '#d97757', cache: '#788c5d' })
   expect(DEFAULT_THEME.warn).toBe('#b8433b')
   const m: Measure = {
